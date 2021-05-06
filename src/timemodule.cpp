@@ -20,8 +20,13 @@ ostream & operator<<(ostream &out, const Sattime GPST) {
     return out;
 }
 
-Sattime::Sattime() {
+Sattime::Sattime(int week, double sow) {
+    Week_ = week; Sow_ = sow;
+}
 
+
+Sattime::Sattime() {
+    Week_ = 0; Sow_ = 0;
 }
 
 Sattime Sattime::operator-(const Sattime &a) const {      
@@ -32,6 +37,10 @@ Sattime Sattime::operator-(const Sattime &a) const {
         r.Week_ -= 1;
     }
     return r;
+}
+
+double Sattime::_2sec() {
+    return Week_ * 604800.0 + Sow_;
 }
 
 Sattime Sattime::operator-(const double &a) const {
@@ -142,7 +151,8 @@ bool Mjd2Gps(const Mjdtime MJD, Sattime &GPST) {
         return flag;
 
     GPST.Week_ = int((MJD.Day_ + MJD.FracDay_ - 44244) / 7.0);
-    GPST.Sow_ = (MJD.Day_ + MJD.FracDay_ - GPST.Week_ * 7 - 44244) * 86400;
+    GPST.Sow_ = (MJD.Day_ - GPST.Week_ * 7.0 - 44244.0) * 86400.0;
+    GPST.Sow_ +=   MJD.FracDay_ * 86400.0;
     // 合法性判断
     flag = isLegal(GPST);
 
@@ -230,3 +240,13 @@ Commontime::Commontime() {
     Year_ = Month_ = Day_ = Hour_ = Min_ = Sec_ = 0;
 }
 
+double Sattimediff(const Sattime t1, const Sattime t2) {
+    Sattime diff = t1 - t2;
+    return diff.Week_ * 604800.0 + diff.Sow_;
+}
+
+bool Sattime::operator!=(const Sattime &a) const {
+    if (abs(Sattimediff(a, *this)))
+        return true;
+    return false;
+}

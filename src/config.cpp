@@ -11,7 +11,7 @@ CConfig::CConfig(char* path) {
 }
 
 void CConfig::LoadConfig(char* path) {
-    LoadPrcopt(path);
+    Loadprcopt(path);
     LoadSites(path);
 }
 
@@ -23,7 +23,7 @@ void CConfig::reset() {
     opt_.elecutoff_ = 0;
 }
 
-void CConfig::LoadPrcopt(char* path) {
+void CConfig::Loadprcopt(char* path) {
     char path_conf[256];
     strcpy(path_conf, path);
     strcat(path_conf, NAME_CONF);
@@ -167,6 +167,6 @@ void CConfig::ParseSiteLine(string line) {
     opt_.sitenum_ = sitenum;
 }
 
-Prcopt CConfig::GetConf() {
+prcopt CConfig::GetConf() {
     return opt_;
 }

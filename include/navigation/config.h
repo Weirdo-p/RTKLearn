@@ -33,10 +33,10 @@ public: // main functions
      * get configurations
      * @return configurations
     *************************************************/
-    Prcopt GetConf();
+    prcopt GetConf();
 
 private: // processing configurations 
-    void LoadPrcopt(char* path);    /* load process.conf */
+    void Loadprcopt(char* path);    /* load process.conf */
     void ParseConfLine(string line);    /* parse a line of process.conf */
     bool ParseLabel(string label, string value);  /* parse parameter */
     void SetSys(string value);
@@ -51,7 +51,7 @@ private: // sites configurations
     void ParseSiteLine(string line);
 
 private:
-    Prcopt opt_;
+    prcopt opt_;
 };
 
 #endif // _CONFIG_H_

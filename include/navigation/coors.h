@@ -5,7 +5,7 @@
 
 #ifndef _COORS_H_
 #define _COORS_H_
-
+#include "navigation/navicommon.h"
 /***********************************
  * transform radians to degree
  * @param   rad     [In]    degree
@@ -20,5 +20,23 @@ double Rad2Deg(double rad);
 ***********************************/
 double Deg2Rad(double deg);
 
+/***********************************************************
+ * transfer ecef to blh (radians)
+ * @param   xyz         [in]     coordinates in ecef
+ * @param   ellipsoid   [in]     ellipsoid type
+ * @param   blh         [in/out] coordinate in blh (radians)
+ * @return  true if success
+***********************************************************/
+bool XYZ2BLH(const double* xyz, Ellipsoid ellipsoid, double* blh);
+
+/********************************************************
+ * transfer ecef to neu
+ * @param   station  [in]  station coordinates in ecef
+ * @param   obj      [in]  object coordinates in ecef
+ * @param   type     [in]  ellipsoid type
+ * @param   neu      [in/out] coordinate in neu
+ * @return true if success
+********************************************************/
+bool XYZ2NEU(const double* station, const double* obj, Ellipsoid type, double *neu);
 
 #endif // _COOORS_H_

@@ -1,7 +1,9 @@
 #include <fstream>
 #include <sstream>
 #include <string.h>
+#include <string>
 #include <algorithm>
+#include <chrono>
 #include "navigation/rinex/rinex304.h"
 #include "navigation/utils.h"
 #include "navigation/timemodule.h"
@@ -11,41 +13,67 @@ using namespace std;
 CDecodeRnx304::CDecodeRnx304() {
 
 }
+CDecodeRnx304::~CDecodeRnx304() {
+    
+}
 
-int CDecodeRnx304::decode(char** infiles, int n, Prcopt opt) {
-    obss_ = new obs[opt.sitenum_]; 
-    for (int i = 0; i < n; ++i) {
-        ifstream in(infiles[i]);
-        if(!in) {
-            cout << "open " << infiles[i] << " error" << endl;
+int CDecodeRnx304::decode(char* infiles, prcopt opt) {
+    ifstream in(infiles);
+    if(!in) {
+        cout << "open " << infiles << " error" << endl;
+        return -1;
+    }
+    string line, label;
+    getline(in, line);
+    try {
+        label = line.substr(60, 20);
+    } catch (...) {
+        label = line.substr(60, line.size() - 60);
+    }
+    auto itor = remove_if(label.begin(), label.end(), ::isspace);
+    label.erase(itor, label.end());
+    if (label == "RINEXVERSION/TYPE") {
+        string s_ver = line.substr(5, 4);
+        if (s_ver != "3.04") {
+            cout << "rinex version is " << s_ver << " which is not supported" << endl;
             return -1;
         }
-        memset(&rnxopt_, 0, sizeof(rnxopt));
-        memset(rnxopt_.obstypepos_, -1, sizeof(unsigned short) * MAXSYS * MAXFREQ * 4);
-        string line, label;
-        getline(in, line);
-        try {
-            label = line.substr(60, 20);
-        } catch (...) {
-            label = line.substr(60, line.size() - 60);
+        if (line[20] == 'O') {
+            memset(&rnxopt_, 0, sizeof(rnxopt));
+            memset(rnxopt_.obstypepos_, -1, sizeof(unsigned short) * MAXSYS * MAXFREQ * 4);
+            int obsnum = scanobsfile(in);
+            in.clear(); in.seekg(0);
+            readobsh(in, opt);
+            readobsb(in, obsnum, opt);
+        } else if (line[20] == 'N') {
+            int satnums = scannav(in, opt);
+            eph_->msg_ = new nav_t [satnums];
+            eph_->num = satnums;
+            memset(eph_->msg_, 0, sizeof(nav));
+            in.clear(); in.seekg(0);
+            readephh(in, opt);
+            readephb(in, opt);
         }
-        auto itor = remove_if(label.begin(), label.end(), ::isspace);
-        label.erase(itor, label.end());
-        if (label == "RINEXVERSION/TYPE") {
-            string s_ver = line.substr(5, 4);
-            if (s_ver != "3.04") {
-                cout << "rinex version is " << s_ver << " which is not supported" << endl;
-                return -1;
-            }
-            if (line[20] == 'O') {
-                int obsnum = scanobsfile(in);
-                in.clear(); in.seekg(0);
-                readobsh(in, opt);
-                readobsb(in, obsnum, opt);
-            }
-        }
-        in.close();
     }
+    in.close();
+    
+    // cout << "start to search eph" << endl;
+    // clock_t begin = clock();
+    // for (int i = 0; i < eph_->num; ++i) {
+    //     if (eph_->msg_[i].sys_ == SYS_GPS && eph_->msg_[i].prn_ == 12) {
+    //         cout << "find" << endl;
+    //     }
+    // }
+    // clock_t end = clock();
+    // cout << "time usage: " << double(end - begin) / CLOCKS_PER_SEC << endl;;
+    // ofstream out("./results/out.o", ios::app);
+    // for (int i = 0; i < opt.sitenum_; ++i) {
+    //     for (int j = 0; j < obss_[i].obsnum_; ++j) {
+    //         out << obss_[i].obs_[j].P[0] << " " << obss_[i].obs_[j].L[0] << 
+    //                 obss_[i].obs_[j].P[1] << " " << obss_[i].obs_[j].L[1] << 
+    //                 endl; 
+    //     }
+    // }
 }
 
 int CDecodeRnx304::scanobsfile(ifstream &in) {
@@ -60,7 +88,7 @@ int CDecodeRnx304::scanobsfile(ifstream &in) {
     return count;
 }
 
-int CDecodeRnx304::readobsh(ifstream &in, Prcopt opt) {
+int CDecodeRnx304::readobsh(ifstream &in, prcopt opt) {
     const char* p;
     while(!in.eof()) {
         string line, label;
@@ -79,7 +107,7 @@ int CDecodeRnx304::readobsh(ifstream &in, Prcopt opt) {
                     continue;
                 int sys = int(p - sys_);
                 int sysflag = code2sys(line[0]);
-                if ((opt.navsys_ & SYS_ARRAY[i] == SYS_ARRAY[i]) && (sysflag == SYS_ARRAY[i]))
+                if (((opt.navsys_ & SYS_ARRAY[i]) == SYS_ARRAY[i]) && (sysflag == SYS_ARRAY[i]))
                     readfreqtype(in, line, sys, opt);
             }
         }
@@ -89,7 +117,7 @@ int CDecodeRnx304::readobsh(ifstream &in, Prcopt opt) {
     return 1;
 }
 
-int CDecodeRnx304::readfreqtype(ifstream &in, string line, int sys, Prcopt opt) {
+int CDecodeRnx304::readfreqtype(ifstream &in, string line, int sys, prcopt opt) {
     const int maxfreqtps = 13;
     int position = 0;
     string s_freqnum = line.substr(3, 3);
@@ -128,7 +156,7 @@ int CDecodeRnx304::readfreqtype(ifstream &in, string line, int sys, Prcopt opt) 
     return 1;
 }
 
-int CDecodeRnx304::readobsb(ifstream &in, int obsnum, Prcopt opt) {
+int CDecodeRnx304::readobsb(ifstream &in, int obsnum, prcopt opt) {
     static unsigned short sitenum = 0;
     int epoch = 0;
     if (obss_[sitenum].obs_) return -1;
@@ -140,15 +168,15 @@ int CDecodeRnx304::readobsb(ifstream &in, int obsnum, Prcopt opt) {
         getline(in, line);
         if (line[0] == '>') {
             int satnum = 0;
-            if (!(satnum = decodeEpoch(sitenum, epoch++, line)))
+            if (!(satnum = decodeEpoch(sitenum, epoch, line)))
                 continue;
-            decodeobsr(in, sitenum, satnum, epoch);
+            decodeobsr(in, sitenum, satnum, opt, epoch);
         }
     }
     sitenum += 1;
 }
 
-int CDecodeRnx304::decodeEpoch(int sitenum, int epoch, string line) {
+int CDecodeRnx304::decodeEpoch(int sitenum, int &epoch, string line) {
     
     int year, month, day, hour, min, satnum, flag;
     double sec;
@@ -168,18 +196,20 @@ int CDecodeRnx304::decodeEpoch(int sitenum, int epoch, string line) {
     }
     Common2Gps(Commontime(year, month, day, hour, min, sec),
                obss_[sitenum].obs_[epoch].time, 0);
-
     return satnum;
 }
 
-bool CDecodeRnx304::decodeobsr(ifstream &in, int sitenum, int satnum, int epoch) {
+bool CDecodeRnx304::decodeobsr(ifstream &in, int sitenum, int satnum, prcopt opt, int &epoch) {
     string line;
     const char* p;
+    Sattime time = obss_[sitenum].obs_[epoch].time;
     for (int i = 0; i < satnum; ++i) {
         getline(in, line);
         if(!(p = strchr(sys_, line[0])))
             continue;
         int syspos = int(p - sys_);
+        if ((SYS_ARRAY[syspos] & opt.navsys_) != SYS_ARRAY[syspos])
+            continue;
         for (int pos = 0; pos < MAXFREQ * 4; ++ pos) {
             int obspos = rnxopt_.obstypepos_[syspos][pos];
             if (obspos == -1)
@@ -201,6 +231,7 @@ bool CDecodeRnx304::decodeobsr(ifstream &in, int sitenum, int satnum, int epoch)
                 continue;
             }
             obss_[sitenum].obs_[epoch].lli[freqpos * 4 + modepos] = str2num<int>(s_lli);
+            obss_[sitenum].obs_[epoch].time = time;
             switch (modepos) {
             case 0: // pseudorange
                 obss_[sitenum].obs_[epoch].P[freqpos] = str2num<double>(s_obs);
@@ -208,17 +239,19 @@ bool CDecodeRnx304::decodeobsr(ifstream &in, int sitenum, int satnum, int epoch)
             case 1: // carrier phase
                 obss_[sitenum].obs_[epoch].L[freqpos] = str2num<double>(s_obs);
                 break;
-            case 2: // carrier phase
+            case 2: // doppler
                 obss_[sitenum].obs_[epoch].D[freqpos] = str2num<double>(s_obs);
                 break;
-            case 3: // carrier phase
+            case 3: // signal strength
                 obss_[sitenum].obs_[epoch].S[freqpos] = str2num<double>(s_obs);
                 break;
             default:
                 break;
             }
         }
+        epoch++;
     }
+    return true;
 }
 
 int CDecodeRnx304::code2sys(char code) {
@@ -232,4 +265,149 @@ int CDecodeRnx304::code2freqnum(int pos) {
     else if (pos == 1)  return FREQTYPE_L2;
     else if (pos == 2)  return FREQTYPE_L3;
     else return -1;
+}
+
+int CDecodeRnx304::readephh(ifstream &in, prcopt opt) {
+    string line, label;
+    while (!in.eof()) {
+        getline(in, line);
+        try {
+            label = line.substr(60, 20);
+        } catch (...) {
+            label = line.substr(60, line.size() - 60);
+        }
+        auto itor = remove_if(label.begin(), label.end(), ::isspace);
+        label.erase(itor, label.end());
+        if (label == "ENDOFHEADER") break;
+    }
+    return 1;
+}
+
+
+int CDecodeRnx304::readephb(ifstream &in, prcopt opt) {
+    int ephnum = 0;
+    string line;
+    while(!in.eof()) {
+        getline(in, line);
+        int sysflag = code2sys(line[0]);
+        if ((sysflag & opt.navsys_) != sysflag) continue;
+        if (sysflag == SYS_GPS)
+            readgpseph(in, line, opt, ephnum);
+        else if (sysflag == SYS_BDS) 
+            readbdseph(in, line, opt, ephnum);
+        ephnum ++;
+    }
+}
+
+int CDecodeRnx304::readgpseph(ifstream &in, string& line, prcopt opt, int ephnum) {
+    int year, month, day, hour, min;
+    double sec;
+    eph_->msg_[ephnum].sys_ = SYS_GPS;
+    string value = line.substr(1, 2);
+    eph_->msg_[ephnum].prn_ = str2num<double>(value);
+    value = line.substr(4, 4); year = str2num<int>(value);
+    value = line.substr(9, 2); month = str2num<int>(value);
+    value = line.substr(12, 2); day = str2num<int>(value);
+    value = line.substr(15, 2); hour = str2num<int>(value);
+    value = line.substr(18, 2); min = str2num<int>(value);
+    value = line.substr(21, 2); sec = str2num<double>(value);
+    Common2Gps(Commontime(year, month, day, hour, min, sec), eph_->msg_[ephnum].toc_, 0);
+    value = line.substr(23, 19); eph_->msg_[ephnum].clkbias_ = str2num<double>(value);
+    value = line.substr(42, 19); eph_->msg_[ephnum].clkdrift_ = str2num<double>(value);
+    value = line.substr(61, 19); eph_->msg_[ephnum].clkdrate_ = str2num<double>(value);
+    double d_ephvalue[28] = {0};
+    for (int i = 0; i < 7; ++i) {
+        getline(in, line);
+        for (int j = 0; j < 4; ++j) {
+            if (i == 6 && j >= 1) break;
+            value = line.substr(4 + j * 19, 19);
+            d_ephvalue[i * 4 + j] = str2num<double>(value);
+        }
+    }
+    
+    // orbit-1
+    eph_->msg_[ephnum].Iode_ = d_ephvalue[0]; eph_->msg_[ephnum].Crs_ = d_ephvalue[1];
+    eph_->msg_[ephnum].Deltan_ = d_ephvalue[2]; eph_->msg_[ephnum].M0_ = d_ephvalue[3];
+    // orbit-2
+    eph_->msg_[ephnum].Cuc_ = d_ephvalue[4]; eph_->msg_[ephnum].ecc_ = d_ephvalue[5];
+    eph_->msg_[ephnum].Cus_ = d_ephvalue[6]; eph_->msg_[ephnum].sqrtA_ = d_ephvalue[7];
+    // orbit-3
+    eph_->msg_[ephnum].toe_ = Sattime(d_ephvalue[18], d_ephvalue[8]);
+    eph_->msg_[ephnum].Cic_ = d_ephvalue[9]; eph_->msg_[ephnum].Omega0_ = d_ephvalue[10];
+    eph_->msg_[ephnum].Cis_ = d_ephvalue[11];
+    // orbit-4
+    eph_->msg_[ephnum].I0_ = d_ephvalue[12]; eph_->msg_[ephnum].Crc_ = d_ephvalue[13];
+    eph_->msg_[ephnum].Omega_ = d_ephvalue[14]; eph_->msg_[ephnum].Omega_dot_ = d_ephvalue[15];
+    // orbit-5
+    eph_->msg_[ephnum].Idot_ = d_ephvalue[16];
+    // orbit-6
+    eph_->msg_[ephnum].SV_ = d_ephvalue[20]; eph_->msg_[ephnum].SVHealth_ = d_ephvalue[21];
+    eph_->msg_[ephnum].Tgd_[0] = d_ephvalue[22]; eph_->msg_[ephnum].Iodc_ = d_ephvalue[23];
+    // orbit-7
+    eph_->msg_[ephnum].Tof_ = d_ephvalue[25];
+    return 1;
+}
+
+int CDecodeRnx304::readbdseph(ifstream &in, string &line, prcopt opt, int ephnum) {
+    int year, month, day, hour, min;
+    double sec;
+    eph_->msg_[ephnum].sys_ = SYS_BDS;
+    string value = line.substr(1, 2);
+    eph_->msg_[ephnum].prn_ = str2num<double>(value);
+    value = line.substr(4, 4); year = str2num<int>(value);
+    value = line.substr(9, 2); month = str2num<int>(value);
+    value = line.substr(12, 2); day = str2num<int>(value);
+    value = line.substr(15, 2); hour = str2num<int>(value);
+    value = line.substr(18, 2); min = str2num<int>(value);
+    value = line.substr(21, 2); sec = str2num<double>(value);
+    Common2Gps(Commontime(year, month, day, hour, min, sec), eph_->msg_[ephnum].toc_, 0);
+    eph_->msg_[ephnum].toc_ = eph_->msg_[ephnum].toc_ + BDT2GPST;
+    value = line.substr(23, 19); eph_->msg_[ephnum].clkbias_ = str2num<double>(value);
+    value = line.substr(42, 19); eph_->msg_[ephnum].clkdrift_ = str2num<double>(value);
+    value = line.substr(61, 19); eph_->msg_[ephnum].clkdrate_ = str2num<double>(value);
+    double d_ephvalue[28] = {0};
+    for (int i = 0; i < 7; ++i) {
+        getline(in, line);
+        for (int j = 0; j < 4; ++j) {
+            if (i == 6 && j >= 1) break;
+            value = line.substr(4 + j * 19, 19);
+            d_ephvalue[i * 4 + j] = str2num<double>(value);
+        }
+    }
+    // orbit-1
+    eph_->msg_[ephnum].Iode_ = d_ephvalue[0]; eph_->msg_[ephnum].Crs_ = d_ephvalue[1];
+    eph_->msg_[ephnum].Deltan_ = d_ephvalue[2]; eph_->msg_[ephnum].M0_ = d_ephvalue[3];
+    // orbit-2
+    eph_->msg_[ephnum].Cuc_ = d_ephvalue[4]; eph_->msg_[ephnum].ecc_ = d_ephvalue[5];
+    eph_->msg_[ephnum].Cus_ = d_ephvalue[6]; eph_->msg_[ephnum].sqrtA_ = d_ephvalue[7];
+    // orbit-3
+    eph_->msg_[ephnum].toe_ = Sattime(d_ephvalue[18], d_ephvalue[8]);
+    eph_->msg_[ephnum].Cic_ = d_ephvalue[9]; eph_->msg_[ephnum].Omega0_ = d_ephvalue[10];
+    eph_->msg_[ephnum].Cis_ = d_ephvalue[11];
+    BDST2GPST(eph_->msg_[ephnum].toe_, eph_->msg_[ephnum].toe_);
+    // eph_->msg_[ephnum].toe_ = eph_->msg_[ephnum].toe_ + BDT2GPST;
+    // orbit-4
+    eph_->msg_[ephnum].I0_ = d_ephvalue[12]; eph_->msg_[ephnum].Crc_ = d_ephvalue[13];
+    eph_->msg_[ephnum].Omega_ = d_ephvalue[14]; eph_->msg_[ephnum].Omega_dot_ = d_ephvalue[15];
+    // orbit-5
+    eph_->msg_[ephnum].Idot_ = d_ephvalue[16];
+    // orbit-6
+    eph_->msg_[ephnum].SV_ = d_ephvalue[20]; eph_->msg_[ephnum].SVHealth_ = d_ephvalue[21];
+    eph_->msg_[ephnum].Tgd_[0] = d_ephvalue[22]; eph_->msg_[ephnum].Tgd_[1] = d_ephvalue[23];
+    // orbit-7
+    eph_->msg_[ephnum].Tof_ = d_ephvalue[25]; eph_->msg_[ephnum].Iodc_ = d_ephvalue[26];
+    return 1;
+}
+
+int CDecodeRnx304::scannav(ifstream &in, prcopt opt) {
+    string line;
+    int count = 0;
+    while(!in.eof()) {
+        getline(in, line);
+        int sysflag = code2sys(line[0]);
+        if ((sysflag & opt.navsys_) == sysflag)
+            count ++;
+    }
+    eph_->num;
+    return count;
 }

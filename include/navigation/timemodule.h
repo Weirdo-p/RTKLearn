@@ -129,5 +129,12 @@ bool BDST2GPST(const Sattime bdst, Sattime &gpst);
 *************************************/
 bool GPST2Common(const Sattime gpst, Commontime& com, int leap);
 
+/*********************************
+ * satellite time minus
+ * @param   t1 
+ * @param   t2
+ * @return seconds
+*********************************/
+double Sattimediff(const Sattime t1, const Sattime t2);
 
 #endif // _TIME_H_
