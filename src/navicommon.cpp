@@ -17,3 +17,7 @@ sat_s::~sat_s() {
 prcopt::~prcopt() {
     memset(this, 0, sizeof(prcopt));
 }
+
+res_t::~res_t() {
+    memset(this, 0, sizeof(res_t));
+}

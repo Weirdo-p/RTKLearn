@@ -27,26 +27,22 @@ int CPntspp::process() {
     
 }
 
-int CPntspp::spp(sat* sats) {
+int CPntspp::spp(sat** sats) {
     int sitenum = opt_->sitenum_;
-    for (int i_site = 0; i_site < opt_->sitenum_; ++ i_site) {
-        spp_site(i_site, sats[i_site]);
-        cout << setw(4) << setfill('0') << i_site << "  ";
-        cout << setfill(' ');
-        cout << setw(4) << sats->sat_->obs_->time.Week_ << " " << setw(18) << fixed << setprecision(6) << sats->sat_->obs_->time.Sow_;
-        cout << " " << setw(18) << fixed << setprecision(6) << res_->bpos_ecef_[0] <<
-                " " << setw(18) << fixed << setprecision(6) << res_->bpos_ecef_[1] <<
-                " " << setw(18) << fixed << setprecision(6) << res_->bpos_ecef_[2] << endl;
+    int start = 0;
+    if (opt_->base_[0] != 0) start = 1;
+    for (int i_site = start; i_site < opt_->sitenum_; ++ i_site) {
+        spp_site(i_site, &(*sats)[i_site]);
     }    
 }
 
-int CPntspp::spp_site(int i_site, sat &sats) {
+int CPntspp::spp_site(int i_site, sat* sats) {
     int MAXITER = 10;
     double* sitepos_ecef, *sitepos_blh;
 
     selectPos(&sitepos_ecef, &sitepos_blh, i_site);
-    satazel(sitepos_ecef, sats);
-    int nobs = excludesats(sats);
+    satazel(sitepos_ecef, *sats);
+    int nobs = excludesats(*sats);
     double H;
     MatrixXd pos;
     Ellipsoid type(WGS84);
@@ -56,7 +52,7 @@ int CPntspp::spp_site(int i_site, sat &sats) {
         } else {
             H = res_->rpos_blh_[2];
         }
-        int nsys = usesys(sats);
+        int nsys = usesys(*sats);
         if (nsys != opt_->nsys_)
             cout << "WARNING: only " << nsys << " system(s) are used" << endl;
         int cols = 4;
@@ -73,9 +69,9 @@ int CPntspp::spp_site(int i_site, sat &sats) {
         MatrixXd B(nobs, cols), P(nobs, nobs);
         P.Identity(); B.Zero();
         MatrixXd w(nobs, 1);
-        Getl(i_site, sats, sitepos_ecef, pos, w);
+        Getl(i_site, *sats, sitepos_ecef, pos, w);
         // cout << w << endl << endl;
-        GetDesign(sats, sitepos_ecef, B);
+        GetDesign(*sats, sitepos_ecef, B);
         // cout << B << endl << endl;
         // cout << pos << endl << endl;
         if(!optimizer_.optimize(B, P, w)) {

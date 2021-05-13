@@ -103,8 +103,8 @@ struct prcopt {             /* processing options */
    unsigned short nsys_;    /* number of systems */
    unsigned short sitenum_; /* number of site */
    double elecutoff_;       /* elevation cutoff (in radians) */
-   double base_[3];         /* priori coordinates of base */
-   double rover_[3];        /* priori coordinates of rover */
+   double base_[3] = {0};         /* priori coordinates of base */
+   double rover_[3] = {0};        /* priori coordinates of rover */
    string nbase_;           /* name of base */
    string nrover_;          /* name of rover */
 
@@ -282,6 +282,7 @@ struct res_t {  /* result for an epoch */
     double baseline_[3];            /* baseline result */
     double enu[3];                  /* e/n/u respectively */
     double recv_clk_[MAXSITES];     /* reciever clock */
-
+public:
+    ~res_t();
 };
 #endif // _NAVICOMMON_H_

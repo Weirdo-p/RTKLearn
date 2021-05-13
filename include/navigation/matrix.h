@@ -10,6 +10,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <fstream>
 
 using namespace std;
 
@@ -106,6 +107,8 @@ public:
     template<int _2>
     Matrix<Type, _0, _2> operator*(const Matrix<Type, _1, _2> &matrix);
 
+    Matrix<Type, _0, _1> operator*(const int a);
+
     /* print the matrix */
     template<class Type1, int _0_, int _1_>
     friend ostream & operator<<(ostream &out, Matrix<Type1, _0_, _1_> &matrix);
@@ -127,6 +130,9 @@ public:
 
     /* try to override = but failed */
     // const Type operator=(const int num);
+public:
+    template<class Type1, int _0_, int _1_>
+    void block(int start_row, int start_col, Matrix<Type1, _0_, _1_> matrix);
 
 private:
     /* rows of the matrix */
@@ -224,7 +230,6 @@ Type & Matrix<Type, _0, _1>::operator()(const int row, const int col) const
     if(row >= this->rows || col >= this->cols)
     {
         cerr << "assertion occurred! fail to find the element, please check" << endl;
-        exit(-1);
     }
 
     // to get the position of the element
@@ -449,14 +454,10 @@ const Matrix<Type, _0, _1> & Matrix<Type, _0, _1>::operator= (const Matrix<Type,
 template<class Type1, int _0_, int _1_>
 ostream & operator<<(ostream &out, Matrix<Type1, _0_, _1_> &matrix)
 {
-    for(int i = 0; i < matrix.row(); ++i)
-    {
+    for(int i = 0; i < matrix.row(); ++i) {
         // format the out
-        out.width(8);
-        for(int j = 0; j < matrix.col(); ++j)
-        {
-            out << setprecision(15) << matrix.operator()(i, j);
-            out << "\t";
+        for(int j = 0; j < matrix.col(); ++j) {
+            out << setw(15) << matrix.operator()(i, j) << " ";
         }
         out << endl;
     }
@@ -575,8 +576,10 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::inverse(int &flag)
         // 若主元为0  则矩阵不可逆
         if (abs(value) <= 1e-10)
         {
+            ofstream debug ("./inverse.txt", ios::app);
             cerr << "this matrix is not invertible" << endl << endl;
-            cout << *this << endl;
+            debug << *this << endl;
+            debug.close();
             flag = 0;
             copy.deleteMatrix();
             return Identity_;
@@ -678,6 +681,25 @@ double Matrix<T, _0, _1>::norm()
     return sqrt(sum);
 }
 
+template <class Type, int _0, int _1>
+template <class Type1, int _0_, int _1_>
+void Matrix<Type, _0, _1>::block(int s_row, int s_col, Matrix<Type1, _0_, _1_> matrix) {
+    if (matrix.col() <=0 || matrix.row() <= 0) return;
+    if (s_row + matrix.rows > rows || s_col + matrix.cols > cols) return;
+
+    for(int i = 0; i < matrix.rows; ++i)
+        for(int j = 0; j < matrix.cols; ++j)
+            this->operator()(i + s_row, j + s_col) = matrix(i, j);
+}
+
+template <class Type, int _0, int _1>
+Matrix<Type, _0, _1> Matrix<Type, _0, _1>::operator*(const int a) {
+    Matrix<Type, _0, _1> temp = *this;
+    for (int i = 0; i < rows; ++i)
+        for(int j = 0; j < cols; ++j)
+            temp(i, j) = this->operator()(i, j) * a;
+    return temp;
+}
 
 #endif
 

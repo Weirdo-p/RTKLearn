@@ -1,16 +1,21 @@
-add_library(navigation SHARED
+add_library(common SHARED
         config.cpp
         coors.cpp
         utils.cpp
         timemodule.cpp
         navicommon.cpp
-        atmosphere.cpp
-        rinex/rinex304.cpp
-        rinex/rinexbase.cpp
-        ephemeris/ephbase.cpp
-        ephemeris/ephgps.cpp
-        ephemeris/ephbds.cpp
+        atmosphere.cpp)
+
+add_library(pnt SHARED
         pnt/pntbase.cpp
         pnt/pntrtk.cpp
         pnt/pntspp.cpp
-        optimal/leastsq.cpp)
+        ephemeris/ephbase.cpp
+        ephemeris/ephgps.cpp
+        ephemeris/ephbds.cpp
+        rinex/rinex304.cpp
+        rinex/rinexbase.cpp)
+
+add_library(optimal SHARED
+        optimal/leastsq.cpp
+        optimal/kalman.cpp)

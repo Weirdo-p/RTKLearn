@@ -128,6 +128,20 @@ protected:
 
     void selectPos(double** xzy, double** blh, int i_site);
 
+    void getSysObs(sat sats, int* nobs_sys);
+
+    double getSatUserPos(sat_s sats, double* sitepos);
+
+    /************************************************
+     * get weight by elevation 
+     * 
+     * sigma^2 = sigma0^2 * (1 + alpha * cos^2(E))
+     * @param   elev    [in]    elevation(rad)
+     * @param   simga0  [in]    prior sigma (m)
+     * @param   alpha   [in]    coeff
+     * @return  sigma
+    ************************************************/
+    double weightbyelev(double elev, double sigma0, double alpha);
 
 public: // set function
     void setopt(prcopt opt);

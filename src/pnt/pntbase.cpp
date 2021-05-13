@@ -166,12 +166,14 @@ void CPntbase::earthRotateFix(sat* sats) {
 int CPntbase::excludesats(sat &sat) {
     int satnum = sat.nsats_;
     double cutoff = opt_->elecutoff_;
-    int usedsats = 0;
     for(int isat = 0; isat < satnum; ++ isat) {
         if(sat.sat_[isat].elev_ != 0 && sat.sat_[isat].elev_ < opt_->elecutoff_) {
             sat.sat_[isat].isused = false; continue;
         }
         if ((sat.sat_[isat].prn_ <= 5) && sat.sat_[isat].sys_ == SYS_BDS) {
+            sat.sat_[isat].isused = false; continue;
+        }
+        if ((sat.sat_[isat].prn_ >= 59) && sat.sat_[isat].sys_ == SYS_BDS) {
             sat.sat_[isat].isused = false; continue;
         }
 
@@ -184,13 +186,11 @@ int CPntbase::excludesats(sat &sat) {
                     }
             if (isobs) {
                 sat.sat_[isat].isused = true;
-                usedsats += 1;
             }
             else sat.sat_[isat].isused = false;
         }
 
     }
-    return usedsats;
 }
 
 void CPntbase::satazel(double* site, sat &sat) {
@@ -329,4 +329,29 @@ void CPntbase::selectPos(double** xzy, double** blh, int i_site) {
             *blh = res_->rpos_blh_;
         }
     }
+}
+
+void CPntbase::getSysObs(sat sats, int* nobs) {
+    if(!nobs) return;
+    int nobs_sys[MAXSYS] = {0};
+    for (int isat = 0; isat < sats.nsats_; ++isat) 
+        for (int i = 0; i < MAXSYS; ++i) 
+            if (sats.sat_[isat].sys_ == SYS_ARRAY[i] && sats.sat_[isat].isused)
+                nobs_sys[i] += 1;
+    memcpy(nobs, nobs_sys, sizeof(int) * MAXSYS);
+}
+
+double CPntbase::getSatUserPos(sat_s sats, double* sitepos) {
+    double coef[3] = {0}, dist = 0;
+    for (int i = 0; i < 3; ++i) {
+        coef[i] = sitepos[i] - sats.pos_[i];
+        dist += coef[i] * coef[i];
+    }
+    return sqrt(dist);
+}
+
+double CPntbase::weightbyelev(double elev, double sigma0, double alpha) {
+    double sigma02 = sigma0 * sigma0;
+    double cosE = cos(elev);
+    return (sigma02 * (1.0 * alpha * cosE * cosE));
 }

@@ -10,8 +10,8 @@ public:
 
 public:
     virtual int process() override;
-    int spp(sat* sat);
-    int spp_site(int isite, sat &sats);
+    int spp(sat** sat);
+    int spp_site(int isite, sat* sats);
 
 public:
     res_t* getRes();

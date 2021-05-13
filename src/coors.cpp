@@ -56,7 +56,7 @@ bool Ellipsoid::CalculateParam(double a, double b) {
 }
 
 bool XYZ2NEU(const double* station, const double* obj, Ellipsoid type, double *neu) {
-    double station_blh[3];
+    double station_blh[3] = {0};
     XYZ2BLH(station, type, station_blh);
     double B = station_blh[0], L = station_blh[1];
     Matrix3d rotation;
@@ -65,7 +65,7 @@ bool XYZ2NEU(const double* station, const double* obj, Ellipsoid type, double *n
     rotation(2, 0) = cos(B) * cos(L); rotation(2, 1) = cos(B) * sin(L); rotation(2, 2) = sin(B);
     Vector3d vec;
     for (int i = 0; i < 3; ++i) 
-        vec(i, 0) = obj[i] - station[1];
+        vec(i, 0) = obj[i] - station[i];
     Vector3d result = rotation * vec;
     for (int i = 0; i < 3; ++i)
         neu[i] = result(i, 0);

@@ -50,7 +50,7 @@ protected: // helpers
      * @param   row     [out]       rows
      * @param   col     [out]       columns
     ******************************************************/
-    void getDesignDim(int nobs, int &row, int &col);
+    void getDesignDim(sat sats, int nobs, int &row, int &col);
 
     /******************************************************
      * get design matrix
@@ -71,6 +71,53 @@ protected: // helpers
      * @return  satellite information
     ***************************************************/
     sat_s findRef(sat sats, int sysflag, int prn);
+
+    int findSysPos(int sysflag, int* obs_sys);
+
+    int findFreqPos(int sysflag, int* obs_sys, int &last_freq, double &freq);
+
+    /******************************************************
+     * get design matrix
+     * @param   sats    [in]    satellite
+     * @param   refsat  [in]    reference satellites
+     * @param   pos     [in]    dx
+     * @param   B       [out]   design matrix
+     * @return
+    ******************************************************/
+    void getl(sat* sats, double* sitepos, double* refsats, MatrixXd pos, MatrixXd &B);
+
+    /***********************************************
+     * get weight matrix
+     * @param   sats    [in]    satelltes
+     * @param   refsats [in]    reference satellite
+     * @param   P       [out]   weight
+    ***********************************************/
+    void getweight(sat* sats, double* refsats, int nobs, MatrixXd &P);
+
+    /****************************************
+     * @param   sat_    [in]     satellite
+     * @param   subp    [out]    covariance
+    ****************************************/
+    void getsubweight(sat_s sat_, MatrixXd &subcov);
+
+    /*****************************************
+     * @param   cov [out]   covariance matrix
+     * @return single difference covariance
+    *****************************************/
+    MatrixXd getSingleDiffCov(MatrixXd cov);
+
+    /*************************************************************
+     * double-difference covariance
+     * @param   cov_sd  single difference covariance
+     * @param   refpos  column of reference satellite
+     * @param   obs_sys number of different systems observation
+     * @return  double difference covariance
+    *************************************************************/
+    MatrixXd getDoubleDiffCov(MatrixXd cov_sd, int* refpos, int* obs_sys, int nobs);
+
+    bool rtk(sat* sats_epoch);
+
+    int obsnumber(sat* sats);
 
 protected:
     CPntspp* spprunner_;
