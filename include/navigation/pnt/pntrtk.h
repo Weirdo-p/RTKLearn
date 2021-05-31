@@ -22,10 +22,12 @@ protected:
     ************************************/
     int inputobs(sat* sats);
 
+
 protected: // helpers
     int setobs(obs* obss, int &base_pos, int &rover_pos, sat* sats);
     int setnav(nav* navs, sat* sat);
     nav_t* searchnav(Sattime time, int sys, int prn, nav* navs);
+    void getddobs(sat* sats, double* sitepos, int* refsats, int* sysobs, MatrixXd &w);
 
     /********************************************************
      * select reference satellite
@@ -34,7 +36,7 @@ protected: // helpers
      * @param   sats    [in]        satellites
      * @return  true if success  
     ********************************************************/
-    int chooseref(sat sats, double* refsat);
+    int chooseref(sat sats, int* refsat);
 
     /*******************************************************
      * choose reference satellite for a specific system
@@ -61,7 +63,7 @@ protected: // helpers
      * @param   B       [out]   design matrix
      * @return
     ******************************************************/
-    void getDesign(sat* sats, int nobs, double* sitepos, double* refsats, MatrixXd &B);
+    void getDesign(sat* sats, int nobs, double* sitepos, int* refsats, MatrixXd &B);
 
     /***************************************************
      * search reference satellite
@@ -84,7 +86,7 @@ protected: // helpers
      * @param   B       [out]   design matrix
      * @return
     ******************************************************/
-    void getl(sat* sats, double* sitepos, double* refsats, MatrixXd pos, MatrixXd &B);
+    void getl(sat* sats, double* sitepos, int* refsats, MatrixXd pos, MatrixXd &B);
 
     /***********************************************
      * get weight matrix
@@ -92,7 +94,7 @@ protected: // helpers
      * @param   refsats [in]    reference satellite
      * @param   P       [out]   weight
     ***********************************************/
-    void getweight(sat* sats, double* refsats, int nobs, MatrixXd &P);
+    void getweight(sat* sats, int* refsats, int nobs, MatrixXd &P);
 
     /****************************************
      * @param   sat_    [in]     satellite
@@ -122,6 +124,7 @@ protected: // helpers
 protected:
     CPntspp* spprunner_;
 };
+
 
 
 #endif // _PNTRTK_H_

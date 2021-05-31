@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <fstream>
 #include <chrono>
+#include "navigation/optimal/rtkekf.h"
 using namespace chrono;
 
 CPntrtk::CPntrtk() {
@@ -13,11 +14,13 @@ CPntrtk::CPntrtk() {
 }
 
 CPntrtk::CPntrtk(prcopt opt) {
-    if (opt_)
+    if (opt_) {
         memcpy(opt_, &opt, sizeof(opt));
-    else {
+        kf_.setopt(opt_);
+    } else {
         opt_ = new prcopt;
         memcpy(opt_, &opt, sizeof(opt));
+        kf_.setopt(opt_);
     }
     spprunner_ = new CPntspp(*opt_);
 }
@@ -28,12 +31,12 @@ CPntrtk::~CPntrtk() {
     spprunner_ = nullptr;
 }
 
-
 int CPntrtk::process() {
     if (opt_->sitenum_ < 2) return -1;
     sat* sats_epoch = new sat[opt_->sitenum_];
     if (opt_->base_[0] != 0) memcpy(res_->bpos_ecef_, opt_->base_, sizeof(double) * 3);
     if (opt_->rover_[0] != 0) memcpy(res_->rpos_ecef_, opt_->rover_, sizeof(double) * 3);
+    
     while(inputobs(sats_epoch)) {
         auto start = system_clock::now();
         satclk(sats_epoch);
@@ -41,15 +44,15 @@ int CPntrtk::process() {
         earthRotateFix(sats_epoch);
         satvel(sats_epoch);
         relativeeffect(sats_epoch);
-        spprunner_->spp(&sats_epoch);
+        spprunner_->spp(sats_epoch);
         auto res = spprunner_->getRes();
         memcpy(res_->rpos_ecef_, res->rpos_ecef_, sizeof(double) * 3);
         satazel(res_->rpos_ecef_, sats_epoch[0]);
         rtk(sats_epoch);
         auto end = system_clock::now();
         auto cost = duration_cast<microseconds> (end - start);
-        cout << setw(4) << sats_epoch->sat_->obs_->time.Week_ << " " << setw(18) << fixed << setprecision(6) << sats_epoch->sat_->obs_->time.Sow_;
-        cout<< " TIME COST: " << double (cost.count()) * microseconds::period::num / microseconds::period::den << "seconds" << endl;
+        cout << setw(4) << sats_epoch->sat_->obs_->time.Week_ << " " << setw(9) << fixed << setprecision(6) << sats_epoch->sat_->obs_->time.Sow_;
+        cout<< " TIME COST: " << double (cost.count()) * microseconds::period::num / microseconds::period::den << " seconds" << endl;
         memset(sats_epoch, 0, sizeof(sat) * opt_->sitenum_);
     }
 }
@@ -84,6 +87,7 @@ int CPntrtk::setobs(obs* obss, int &base_pos, int &rover_pos, sat* sats) {
     int nsats = 0;
     Sattime time = base->obs_[base_pos].time;
     int i_base = base_pos;
+    #pragma omp parallel for
     for (; i_base < base->obsnum_; ++ i_base) {
         if (base->obs_[i_base].time != time) break;
         for (int i_rover = rover_pos; i_rover < rover->obsnum_; ++ i_rover) {
@@ -106,6 +110,7 @@ int CPntrtk::setobs(obs* obss, int &base_pos, int &rover_pos, sat* sats) {
 
 int CPntrtk::setnav(nav* navs, sat* sats) {
     for (int i = 0; i < 2; ++i) {
+        #pragma omp parallel for
         for (int isat = 0; isat < sats[i].nsats_; ++isat) {
             int sys = sats[i].sat_[isat].sys_;
             int prn = sats[i].sat_[isat].prn_;
@@ -125,6 +130,7 @@ nav_t* CPntrtk::searchnav(Sattime time, int sys, int prn, nav* navs) {
         delay = 3600;
     }
     // nav_t* sat_nav = nullptr;
+    #pragma omp parallel for
     for (int i_nav = navs->num; i_nav > 0; -- i_nav) {
         if (sys != navs->msg_[i_nav].sys_ || prn != navs->msg_[i_nav].prn_)
             continue;
@@ -153,8 +159,12 @@ int CPntrtk::chooseref(sat sats, int sysflag) {
 }
 
 
-int CPntrtk::chooseref(sat sats, double* refsat) {
-    static double REFSATS[MAXSYS] = { -1 };
+int CPntrtk::chooseref(sat sats, int* refsat) {
+    static int REFSATS[MAXSYS] = { -1 };
+    // if (REFSATS[0] != -1) {
+    //     memcpy(refsat, REFSATS, sizeof(int) * MAXSYS);
+    //     return 1;
+    // }
     for (int i = 0; i < MAXSYS; ++i){
         if ((opt_->navsys_ & SYS_ARRAY[i]) == SYS_ARRAY[i])
             refsat[i] = chooseref(sats, SYS_ARRAY[i]);
@@ -163,7 +173,8 @@ int CPntrtk::chooseref(sat sats, double* refsat) {
         if (REFSATS[i] != refsat[i]) {
             // may be reset the kalman filter
         }
-    memcpy(REFSATS, refsat, sizeof(double) * MAXSYS);
+    // refsat[0] = 2; refsat[1] = 1;// for test
+    memcpy(REFSATS, refsat, sizeof(int) * MAXSYS);
     return 1;
 }
 
@@ -174,10 +185,11 @@ void CPntrtk::getDesignDim(sat sats, int nobs, int &row, int &col) {
     col = (nobs - opt_->nsys_) * nfreq + 3;
 }
 
-void CPntrtk::getDesign(sat* sats, int nobs, double* sitepos, double* refsats, MatrixXd &B) {
+void CPntrtk::getDesign(sat* sats, int nobs, double* sitepos, int* refsats, MatrixXd &B) {
     int num = 0, ref_prn = 0, sysflag = 0, pos = 0;
     int obs_sys[MAXSYS] = {0};
     getSysObs(sats[1], obs_sys);
+    #pragma omp parallel for
     for (int isat = 0; isat < sats->nsats_; ++ isat) {
         if(!sats[1].sat_[isat].isused)  continue;
         for (int i = 0; i < MAXSYS; ++i) {
@@ -201,7 +213,10 @@ void CPntrtk::getDesign(sat* sats, int nobs, double* sitepos, double* refsats, M
         dist_sat = sqrt(dist_sat); dist_ref = sqrt(dist_ref);
 
         int last_freq = -1;
-        for (int i_freq = 0; i_freq < opt_->freqnum_; ++ i_freq) {
+        // #pragma omp parallel for
+        for (int i_freq = 0; i_freq < MAXFREQ; ++ i_freq) {
+            if ((opt_->freqtype_ & FREQ_ARRAY[i_freq]) != FREQ_ARRAY[i_freq])
+                continue;
             // fill in B with pseudorange and phase observations
             for(int count = 0; count < 2; ++count, ++num)
                 for (int i = 0; i < 3; ++i)
@@ -264,12 +279,13 @@ int CPntrtk::findFreqPos(int sysflag, int* obs_sys, int &last_freq, double &freq
     return extern_pos;
 }
 
-void CPntrtk::getl(sat* sats, double* sitepos, double* refsats, MatrixXd pos, MatrixXd &w) {
+void CPntrtk::getl(sat* sats, double* sitepos, int* refsats, MatrixXd pos, MatrixXd &w) {
     int nobs = sats->nsats_;
     int ref_prn = -1, sysflag = -1;
     int num = 0;
     double rover_pos[3] = {0};
     for (int i = 0; i < 3; ++i) rover_pos[i] = pos(i, 0);
+    #pragma omp parallel for
     for (int isat = 0; isat < nobs; ++isat) {
         if(!sats[1].sat_[isat].isused)  continue;
         for (int i = 0; i < MAXSYS; ++i) {
@@ -300,14 +316,14 @@ void CPntrtk::getl(sat* sats, double* sitepos, double* refsats, MatrixXd pos, Ma
     }
 }
 
-void CPntrtk::getweight(sat* sats, double* refsats, int nobs, MatrixXd &P) {
-    int satnum = sats->nsats_;
+void CPntrtk::getweight(sat* sats, int* refsats, int nobs, MatrixXd &P) {
     int num = 0, ref_prn = 0, sysflag = 0;
     int nfreq = opt_->freqnum_, nsites = opt_->sitenum_;
     int refpos[MAXSYS] = {0}, obs_sys[MAXSYS] = {0};
     getSysObs(sats[1], obs_sys);
     MatrixXd cov(nobs * 2 * nfreq * nsites, nobs * 2 * nfreq * nsites);
     cov.Zero();
+    #pragma omp parallel for
     for (int isat = 0; isat < sats->nsats_; ++ isat) {
         if(!sats[1].sat_[isat].isused)  continue;
         for (int i = 0; i < MAXSYS; ++i) 
@@ -329,14 +345,12 @@ void CPntrtk::getweight(sat* sats, double* refsats, int nobs, MatrixXd &P) {
 
     int istrue = true;
     P = cov_double_diff.inverse(istrue);
-    if (!istrue) {
-        ofstream out ("./p_debug.txt", ios::app);
-        out << P << endl << endl;
-        out << cov_single_diff << endl << endl;
-        out << cov_double_diff << endl << endl;
-        out << cov << endl << endl;
-        out.close();
-    }
+    // ofstream out ("./p_debug.txt");
+    // out << P << endl << endl;
+    // out << cov_single_diff << endl << endl;
+    // out << cov_double_diff << endl << endl;
+    // out << cov << endl << endl;
+    // out.close();
 }
 
 void CPntrtk::getsubweight(sat_s sat_, MatrixXd &subcov) {
@@ -345,7 +359,7 @@ void CPntrtk::getsubweight(sat_s sat_, MatrixXd &subcov) {
     int num = 0;
     for (int i = 0; i < MAXFREQ; ++i) {
         if ((opt_->freqtype_ & FREQ_ARRAY[i]) == FREQ_ARRAY[i]){
-            subcov(num, num) = weightbyelev(sat_.elev_, 0.01, 1.5); num += 1;
+            subcov(num, num) = weightbyelev(sat_.elev_, 0.3, 1.5); num += 1;
             subcov(num, num) = weightbyelev(sat_.elev_, 0.003, 1.5); num += 1;
         }
     }
@@ -358,6 +372,7 @@ MatrixXd CPntrtk::getSingleDiffCov(MatrixXd cov) {
     MatrixXd subcoef(2 * nfreq, 2 * nfreq);
     subcoef.Identity();
     int i_col = 0;
+    // #pragma omp parallel for
     for (int i_row = 0; i_row < coeff.row(); i_row += subcoef.row()) {
         int count = 1;
         for (; i_col < coeff.col() && count <= 2; i_col += subcoef.col(), ++count) {
@@ -374,7 +389,7 @@ MatrixXd CPntrtk::getDoubleDiffCov(MatrixXd cov_sd, int* refpos, int* obs_sys, i
     MatrixXd sub_coef(nfreq * 2, nfreq * 2);
     coeff.Zero(); sub_coef.Identity();
     int i_row = 0, col = 0;
-    
+    #pragma omp parallel for
     for (int i_sys = 0; i_sys < MAXSYS; ++i_sys) {
         int total = 0;
         for (int i = i_sys; i >= 0; i--) total += (obs_sys[i] - 1) * 2 * nfreq;
@@ -386,50 +401,72 @@ MatrixXd CPntrtk::getDoubleDiffCov(MatrixXd cov_sd, int* refpos, int* obs_sys, i
             coeff.block(i_row, refpos[i_sys], sub_coef * -1);
             coeff.block(i_row, col, sub_coef);
         }
+        if (refpos[i_sys] >= total) col += 2 * nfreq;
     }
     // cout << nobs << " coeff" << " " << coeff.row() << " " << coeff.col() << "  " << (nobs - opt_->nsys_) * nfreq * 2 << endl;
     return coeff * cov_sd * coeff.transpose();
 }
 
 bool CPntrtk::rtk(sat* sats_epoch) {
-    int MAXITER = 10, iter = 0;
-    double REFSATS[MAXSYS] = { -1 };
+    int MAXITER = 10, iter = 0, issuccess = 0;
+    int REFSATS[MAXSYS] = { -1 };
     int nobs = 0;
     for (int i = 0; i < opt_->sitenum_; ++i)
         excludesats(sats_epoch[i]);  // observation count by rover
+    
     nobs = obsnumber(sats_epoch);
     chooseref(sats_epoch[1], REFSATS);
     int row = 0, col = 0;
-    MatrixXd pos;
     getDesignDim(sats_epoch[1], nobs, row, col);
-    while (iter < MAXITER) {
-        MatrixXd B(row, col);
-        MatrixXd w(row, 1);
-        MatrixXd P(row, row);
-        if (iter == 0) {
-            pos.resize(col, 1); pos.Zero();
-            for (int i = 0; i < 3; ++i) pos(i, 0) = res_->rpos_ecef_[i];
-        }
-        double rover_pos[3] = {0};
-        for (int i = 0; i < 3; ++i) rover_pos[i] = pos(i, 0);
-        B.Zero(); P.Zero(); w.Zero();
-        getDesign(sats_epoch, nobs, rover_pos, REFSATS, B);
-        getl(sats_epoch, rover_pos, REFSATS, pos, w);
-        getweight(sats_epoch, REFSATS, nobs, P);
-        if(!optimizer_.optimize(B, P, w)) {
-            continue;
-        }
-        MatrixXd x = optimizer_.Getx();
-        MatrixXd x_pos(3, 1);
-        for (int i = 0; i < 3; ++i) {
-            pos(i, 0) += x(i, 0); x_pos(i, 0) = x(i, 0);
-        }
-        if (x_pos.norm() < 1E-8) break;
-        iter ++;
-    }
-    for (int i = 0; i < 3; ++ i) res_->rpos_ecef_[i] = pos(i, 0);
+    int sysobs[MAXSYS] = {0};
+    getSysObs(sats_epoch[1], sysobs);
+    MatrixXd B(row, col); B.Zero();
+    MatrixXd P(row, row);
+    MatrixXd ddobs(row, 1);
+    getDesign(sats_epoch, nobs, res_->rpos_ecef_, REFSATS, B);
+    getweight(sats_epoch, REFSATS, nobs, P);
+    getddobs(sats_epoch, res_->rpos_ecef_, REFSATS, sysobs, ddobs);
+    MatrixXd cov = P.inverse(issuccess);
+    kf_.setObsMatrix(B); kf_.setVarObs(cov);
+    ofstream out1("./p_debug.txt");
+    P = cov.inverse(issuccess);
+    out1 << cov << endl;
+    out1.close();
+    kf_.filter(sats_epoch, *res_, ddobs, nobs, REFSATS, sysobs);
+
+    /* LEAST SQUARE METHOD */
+    // MatrixXd pos;
+    // getDesignDim(sats_epoch[1], nobs, row, col);
+    // while (iter < MAXITER) {
+    //     MatrixXd B(row, col);
+    //     MatrixXd w(row, 1);
+    //     MatrixXd P(row, row);
+    //     if (iter == 0) {
+    //         pos.resize(col, 1); pos.Zero();
+    //         for (int i = 0; i < 3; ++i) pos(i, 0) = res_->rpos_ecef_[i];
+    //     }
+    //     double rover_pos[3] = {0};
+        
+    //     for (int i = 0; i < 3; ++i) rover_pos[i] = pos(i, 0);
+    //     B.Zero(); P.Zero(); w.Zero();
+    //     getDesign(sats_epoch, nobs, rover_pos, REFSATS, B);
+        // getl(sats_epoch, rover_pos, REFSATS, pos, w);
+    //     getweight(sats_epoch, REFSATS, nobs, P);
+    //     int flag = 0;
+    //     if(!optimizer_.optimize(B, P, w)) {
+    //         continue;
+    //     }
+    //     MatrixXd x = optimizer_.Getx();
+    //     MatrixXd x_pos(3, 1);
+    //     for (int i = 0; i < 3; ++i) {
+    //         pos(i, 0) += x(i, 0); x_pos(i, 0) = x(i, 0);
+    //     }
+    //     if (x_pos.norm() < 1E-6) break;
+    //     iter ++;
+    // }
+    // for (int i = 0; i < 3; ++ i) res_->rpos_ecef_[i] = pos(i, 0);
     XYZ2NEU(res_->bpos_ecef_, res_->rpos_ecef_, WGS84, res_->enu);
-    ofstream out("./out.txt", ios::app);
+    ofstream out("./out1.txt", ios::app);
     out << setfill(' ');
     out << setw(4) << sats_epoch->sat_->obs_->time.Week_ << " " << setw(18) << fixed << setprecision(6) << sats_epoch->sat_->obs_->time.Sow_;
     out << " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[0] <<
@@ -437,13 +474,15 @@ bool CPntrtk::rtk(sat* sats_epoch) {
             " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[2] << 
             " " << setw(9) << fixed << setprecision(6) << res_->enu[0] <<
             " " << setw(9) << fixed << setprecision(6) << res_->enu[1] <<
-            " " << setw(9) << fixed << setprecision(6) << res_->enu[2] << endl;
+            " " << setw(9) << fixed << setprecision(6) << res_->enu[2] << " ";
+    out << setw(3) << fixed << nobs << endl;
     out.close();
 }
 
 int CPntrtk::obsnumber(sat* sats) {
     int nsites = opt_->sitenum_;
     int nobs = 0;
+    #pragma omp parallel for
     for (int i_sat = 0; i_sat < sats->nsats_; ++ i_sat) {
         if (!sats[0].sat_[i_sat].isused || !sats[1].sat_[i_sat].isused)
             sats[0].sat_[i_sat].isused = sats[1].sat_[i_sat].isused = false;
@@ -451,3 +490,35 @@ int CPntrtk::obsnumber(sat* sats) {
     }
     return nobs;
 }
+
+void CPntrtk::getddobs(sat* sats, double* sitepos, int* refsats, int* sysobs, MatrixXd &w) {
+    int nobs = sats->nsats_;
+    int ref_prn = -1, sysflag = -1;
+    int num = 0;
+    double rover_pos[3] = {0};
+    for (int i = 0; i < 3; ++i) rover_pos[i] = res_->rpos_ecef_[i];
+    for (int isat = 0; isat < nobs; ++isat) {
+        if(!sats[1].sat_[isat].isused)  continue;
+        for (int i = 0; i < MAXSYS; ++i) {
+            if ((opt_->navsys_ & SYS_ARRAY[i]) == sats[1].sat_[isat].sys_) {
+                ref_prn = refsats[i]; sysflag = SYS_ARRAY[i];
+                break;
+            }
+        }
+        if(sats[1].sat_[isat].prn_ == ref_prn && sats[1].sat_[isat].sys_ == sysflag) continue;
+        sat_s ref_sat_r = findRef(sats[1], sysflag, ref_prn);
+        sat_s ref_sat_b = findRef(sats[0], sysflag, ref_prn);
+        for (int i = 0; i < MAXFREQ; ++i) {
+            if ((opt_->freqtype_ & FREQ_ARRAY[i]) == FREQ_ARRAY[i]) {
+                double phase_obs = sats[1].sat_[isat].obs_->L[i] - ref_sat_r.obs_->L[i]-
+                    sats[0].sat_[isat].obs_->L[i] + ref_sat_b.obs_->L[i];
+                double pseu_obs = sats[1].sat_[isat].obs_->P[i] - ref_sat_r.obs_->P[i]- 
+                    sats[0].sat_[isat].obs_->P[i] + ref_sat_b.obs_->P[i];
+                double freq = GetFreq(sysflag, FREQ_ARRAY[i]);
+                w(num ++, 0) = pseu_obs;
+                w(num ++, 0) = phase_obs * (VEL_LIGHT / freq);
+            }
+        }
+    }
+}
+

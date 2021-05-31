@@ -55,20 +55,27 @@ void CConfig::ParseConfLine(string line) {
     label.erase(itor, label.end());
     itor = remove_if(value.begin(), value.end(), ::isspace);
     value.erase(itor, value.end());
-    ParseLabel(label, value);
+    if (!ParseLabel(label, value)) {
+        cout << "FATAL: UNSUPPORTED OPTIONS" << endl;
+        exit(-1);
+    }
 }
 
 bool CConfig::ParseLabel(string label, string value) {
     bool issuccess = true;
     if (label == "navsys") SetSys(value);
-    else if (label == "elecutoff") issuccess = SetCutOff(value);
-    else if (label == "mode")   issuccess = SetMode(value);
-    else if (label == "eph")    issuccess = SetEphType(value);
-    else if (label == "clk")    issuccess = SetClkType(value);
-    else if (label == "freq")   issuccess = SetFreq(value);
+    else if (label == "elecutoff")  return (SetCutOff(value));
+    else if (label == "mode")       return (SetMode(value));
+    else if (label == "eph")        return (SetEphType(value));
+    else if (label == "clk")        return (SetClkType(value));
+    else if (label == "freq")       return (SetFreq(value));
+    else {
+        cout << "unsupported options: " << label << endl;
+        return false;
+    }
 }
 
-void CConfig::SetSys(string value) {
+bool CConfig::SetSys(string value) {
     opt_.navsys_ = SYS_NONE; opt_.nsys_ = 0;
     for (int i = 0; i < value.size(); ++i) {
         if (value[i] == 'G') {
@@ -78,6 +85,11 @@ void CConfig::SetSys(string value) {
             opt_.navsys_ |= SYS_BDS; opt_.nsys_ ++;
         }
     }
+    if (opt_.navsys_ == SYS_NONE) {
+        cout << "no navigation system input" << endl;
+        return false;
+    }
+    return true;
 }
 
 bool CConfig::SetCutOff(string value) {

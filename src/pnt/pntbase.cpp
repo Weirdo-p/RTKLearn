@@ -6,6 +6,7 @@
 #include "navigation/atmosphere.h"
 #include <stdio.h>
 #include <string.h>
+#include <omp.h>
 
 CPntbase::CPntbase() {
     rnx_ = nullptr; satpos_ = nullptr;
@@ -170,10 +171,14 @@ int CPntbase::excludesats(sat &sat) {
         if(sat.sat_[isat].elev_ != 0 && sat.sat_[isat].elev_ < opt_->elecutoff_) {
             sat.sat_[isat].isused = false; continue;
         }
-        if ((sat.sat_[isat].prn_ <= 5) && sat.sat_[isat].sys_ == SYS_BDS) {
+        // if ((sat.sat_[isat].prn_ <= 5) && sat.sat_[isat].sys_ == SYS_BDS) {
+        //     sat.sat_[isat].isused = false; continue;
+        // }
+        if ((sat.sat_[isat].prn_ >= 59) && sat.sat_[isat].sys_ == SYS_BDS) {
             sat.sat_[isat].isused = false; continue;
         }
-        if ((sat.sat_[isat].prn_ >= 59) && sat.sat_[isat].sys_ == SYS_BDS) {
+
+        if(sat.sat_[isat].prn_ == 5 && sat.sat_[isat].sys_ == SYS_BDS) {
             sat.sat_[isat].isused = false; continue;
         }
 

@@ -27,12 +27,12 @@ int CPntspp::process() {
     
 }
 
-int CPntspp::spp(sat** sats) {
+int CPntspp::spp(sat* sats) {
     int sitenum = opt_->sitenum_;
     int start = 0;
     if (opt_->base_[0] != 0) start = 1;
     for (int i_site = start; i_site < opt_->sitenum_; ++ i_site) {
-        spp_site(i_site, &(*sats)[i_site]);
+        spp_site(i_site, &sats[i_site]);
     }    
 }
 
@@ -41,12 +41,12 @@ int CPntspp::spp_site(int i_site, sat* sats) {
     double* sitepos_ecef, *sitepos_blh;
 
     selectPos(&sitepos_ecef, &sitepos_blh, i_site);
-    satazel(sitepos_ecef, *sats);
     int nobs = excludesats(*sats);
     double H;
     MatrixXd pos;
     Ellipsoid type(WGS84);
     for (int iter = 0; iter < MAXITER; ++ iter) {
+        satazel(sitepos_ecef, *sats);
         if (i_site == 0) {
             H = res_->bpos_blh_[2];
         } else {
@@ -83,7 +83,7 @@ int CPntspp::spp_site(int i_site, sat* sats) {
         MatrixXd x = optimizer_.Getx();
         for (int i = 0; i < x.row(); ++i) pos(i, 0) += x(i, 0);
         setres(sitepos_ecef, sitepos_blh, type, pos);
-        if (x.norm() < 1e-4)
+        if (x.norm() < 1E-6)
             break;
     }
     sitepos_ecef = nullptr; sitepos_blh = nullptr;
@@ -91,6 +91,7 @@ int CPntspp::spp_site(int i_site, sat* sats) {
 
 void CPntspp::GetDesign(sat sats, double* sitepos, MatrixXd &B) {
     int satnum = sats.nsats_, num = 0;
+    #pragma omp parallel for
     for (int i_sat = 0; i_sat < satnum; ++ i_sat) {
         if (!sats.sat_[i_sat].isused) continue;
         double dist = 0, coeff[3] = {0};
@@ -118,6 +119,7 @@ void CPntspp::GetDesign(sat sats, double* sitepos, MatrixXd &B) {
 
 void CPntspp::Getl(int i_site, sat sats, double* sitepos, MatrixXd pos, MatrixXd &w) {
     int satnum = sats.nsats_, num = 0;
+    #pragma omp parallel for
     for (int i_sat = 0; i_sat < satnum; ++ i_sat) {
         if (!sats.sat_[i_sat].isused) continue;
         double dist = 0, coeff[3] = {0};

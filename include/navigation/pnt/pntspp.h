@@ -10,7 +10,7 @@ public:
 
 public:
     virtual int process() override;
-    int spp(sat** sat);
+    int spp(sat* sat);
     int spp_site(int isite, sat* sats);
 
 public:
@@ -28,5 +28,6 @@ protected:
     void Getl(int i_site, sat sats, double* sitepos, MatrixXd pos, MatrixXd &w);
 
 };
+
 
 #endif // _PNTSPP_H_

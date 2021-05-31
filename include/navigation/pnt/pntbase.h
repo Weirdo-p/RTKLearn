@@ -5,6 +5,7 @@
 #include "navigation/ephemeris/ephbase.h"
 #include "navigation/rinex/rinexbase.h"
 #include "navigation/optimal/leastsq.h"
+#include "navigation/optimal/rtkekf.h"
 
 class CPntbase {
 public: // constructors
@@ -152,6 +153,7 @@ protected:
     CRnxBase*   rnx_;       /* rinex reader */
     CEphBase*   satpos_;    /* satellite postion */
     CLeastsq    optimizer_; /* least square */
+    CRtkekf     kf_;        /* kalman filter */
 };
 
 #endif // _PNTBASE_H_

@@ -10,6 +10,7 @@
 #include "navigation/pnt/pntbase.h"
 #include "navigation/pnt/pntspp.h"
 #include "navigation/pnt/pntrtk.h"
+#include "navigation/optimal/rtkekf.h"
 using namespace std;
 
 int main(int argv, char** argc) {

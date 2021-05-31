@@ -103,8 +103,8 @@ struct prcopt {             /* processing options */
    unsigned short nsys_;    /* number of systems */
    unsigned short sitenum_; /* number of site */
    double elecutoff_;       /* elevation cutoff (in radians) */
-   double base_[3] = {0};         /* priori coordinates of base */
-   double rover_[3] = {0};        /* priori coordinates of rover */
+   double base_[3] = {0};   /* priori coordinates of base */
+   double rover_[3] = {0};  /* priori coordinates of rover */
    string nbase_;           /* name of base */
    string nrover_;          /* name of rover */
 

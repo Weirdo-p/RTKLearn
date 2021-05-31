@@ -13,5 +13,6 @@ public:
     
 private:
     MatrixXd x_;
+    
 };
 #endif // _LEASTSQ_H_

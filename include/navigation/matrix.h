@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <fstream>
+#include <omp.h>
 
 using namespace std;
 
@@ -156,8 +157,7 @@ Matrix<Type, _0, _1>::Matrix() {
         this->cols = _1;
         data = nullptr;
     }
-    else
-    {
+    else {
         this->rows = _0;
         this->cols = _1;
         this->data = new Type[rows * cols];
@@ -188,8 +188,7 @@ Matrix<Type, _0, _1>::Matrix(Matrix<Type, _0, _1> &&matrix) {
 
 template<class Type_, int _0, int _1>
 Matrix<Type_, _0, _1>::Matrix(int row, int col) {
-    if(row < 0 || col < 0)
-    {
+    if(row < 0 || col < 0) {
         cerr << "dim error" << endl;
         exit(-1);
     }
@@ -338,12 +337,14 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::operator-(const Matrix<Type, _0, _1> 
         result.resize(matrix.row(), matrix.col());
     }
 
-    for(int i = 0; i < this->row(); ++i)
+    for(int i = 0; i < this->row(); ++i) {
+        #pragma omp parallel for
         for(int j = 0; j < this->col(); ++j)
         {
             Type sum = this->operator()(i, j) - matrix(i, j);
             result.SetElement(i, j, sum);
         }
+    }
     return result;
 }
 
@@ -371,8 +372,10 @@ Matrix<Type, _1, _0> Matrix<Type, _0, _1>::transpose()
     Matrix<Type, _1, _0> result;
     if(_1 == Dynamic || _0 == Dynamic)
         result.resize(this->cols, this->rows);
+    #pragma omp parallel for
     for(int i = 0; i < result.row(); ++i)
     {
+        #pragma omp parallel for
         for(int j = 0; j < result.col(); ++j)
         {
             Type num = this->operator()(j, i);
@@ -397,8 +400,10 @@ Matrix<Type, _0, _2> Matrix<Type, _0, _1>::operator*(const Matrix<Type, _1, _2> 
     if(result_.row() == Dynamic)
         result_.resize(this->row(), matrix.col());
 
+    #pragma omp parallel for
     for(int i = 0; i < this->row(); ++i)
     {
+        #pragma omp parallel for
         for (int k = 0; k < matrix.col(); ++k)
         {
             Type sum = 0;
@@ -435,12 +440,15 @@ const Matrix<Type, _0, _1> & Matrix<Type, _0, _1>::operator= (const Matrix<Type,
     this->cols = matrix.col();
     this->rows = matrix.row();
     this->data = new Type[matrix.col() * matrix.row()];
-    for(int i = 0; i < matrix.row(); ++i)
+    #pragma omp parallel for
+    for(int i = 0; i < matrix.row(); ++i) {
+        #pragma omp parallel for
        for(int j = 0; j < matrix.col(); ++j)
        {
             double tmp = matrix(i, j);
             this->operator()(i, j) = tmp;
        }
+    }
     
     return (*this);
 }
@@ -499,12 +507,15 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::Identity()
         cerr << "identity matrix can only be initialized by square matrix" << endl;
         return this->Zero();
     }
-    for (int i = 0; i < this->row(); ++i)
+    #pragma omp parallel for
+    for (int i = 0; i < this->row(); ++i) {
+        #pragma omp parallel for
         for(int j = 0; j < this->col(); ++j)
             if(i == j)
                 this->SetElement(i, j, 1);
             else
                 this->SetElement(i, j, 0);
+    }
     return (*this);
 }
 
@@ -520,9 +531,13 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::Zero()
     // 2020 09 11 
     // 恢复使用静态方法  问题已解决
     // Matrix<Type, _0, _1> Zero_;
-    for (int i = 0; i < this->row(); ++i)
-        for(int j = 0; j < this->col(); ++j)
+    #pragma omp parallel for
+    for (int i = 0; i < this->row(); ++i) {
+        #pragma omp parallel for
+        for(int j = 0; j < this->col(); ++j) {
             this->SetElement(i, j, 0);
+        }
+    }
     return (*this);
 }
 
@@ -564,6 +579,7 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::inverse(int &flag)
         Type value = abs(copy.operator()(i, i));
 
         // 对第 i+1行开始寻找真正主元
+        #pragma omp parallel for
         for(int j = i + 1; j < copy.row(); ++j)
         {
             Type temp = abs(copy.operator()(j, i));
@@ -588,6 +604,7 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::inverse(int &flag)
         // 同时也要将增广矩阵（单位矩阵）交换相应的两行
         if(posi != i)
         {
+            #pragma omp parallel for
             for(int j = 0; j < copy.col(); ++j)
             {
                 // 先交换矩阵
@@ -604,9 +621,11 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::inverse(int &flag)
 
         // 将下三角矩阵变为0 (应该可以减少一个循环)
         // 经过实践 并不能少循环
+        #pragma omp parallel for
         for(int j = i + 1; j < copy.row(); ++j)
         {
             Type factor = copy.operator()(j, i) / copy.operator()(i, i);
+            #pragma omp parallel for
             for(int k = 0; k < copy.col(); ++k)
             {
                 Type temp = copy.operator()(j, k) - copy.operator()(i, k) * factor;
@@ -634,6 +653,7 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::inverse(int &flag)
             return Identity_;
         }
         // 将对角置1
+        #pragma omp parallel for
         for(int j = 0; j < copy.col(); ++j)
         {
             Type deno = copy.operator()(i, j) / temp;
@@ -643,9 +663,11 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::inverse(int &flag)
             Identity_.SetElement(i, j, deno);
         }
         // 同样的方法上三角置0
+        #pragma omp parallel for
         for(int j = 0; j < i; ++j)
         {
             Type deno = copy.operator()(j, i);
+            #pragma omp parallel for
             for(int k = 0; k < copy.col(); ++k)
             {
                 Type temp = copy.operator()(j, k) - copy.operator()(i, k) * deno;
@@ -686,18 +708,22 @@ template <class Type1, int _0_, int _1_>
 void Matrix<Type, _0, _1>::block(int s_row, int s_col, Matrix<Type1, _0_, _1_> matrix) {
     if (matrix.col() <=0 || matrix.row() <= 0) return;
     if (s_row + matrix.rows > rows || s_col + matrix.cols > cols) return;
-
-    for(int i = 0; i < matrix.rows; ++i)
+    #pragma omp parallel for
+    for(int i = 0; i < matrix.rows; ++i) {
+        #pragma omp parallel for
         for(int j = 0; j < matrix.cols; ++j)
             this->operator()(i + s_row, j + s_col) = matrix(i, j);
+    }
 }
 
 template <class Type, int _0, int _1>
 Matrix<Type, _0, _1> Matrix<Type, _0, _1>::operator*(const int a) {
     Matrix<Type, _0, _1> temp = *this;
-    for (int i = 0; i < rows; ++i)
+    for (int i = 0; i < rows; ++i) {
+        #pragma omp parallel for
         for(int j = 0; j < cols; ++j)
             temp(i, j) = this->operator()(i, j) * a;
+    }
     return temp;
 }
 
