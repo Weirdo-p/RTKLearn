@@ -25,7 +25,7 @@ public:
      * @param   h   [in]    initial value at x(k, k-1)
      * @return  state at time k
     **************************************************/
-    MatrixXd filter(MatrixXd obs, MatrixXd h);
+    MatrixXd optimize(MatrixXd obs, MatrixXd h);
 
 protected:
     int dim_;               // dimension of states

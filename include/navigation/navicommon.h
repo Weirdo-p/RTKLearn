@@ -80,6 +80,12 @@ using namespace std;
 // max supported sites ---------------------------------------------
 #define MAXSITES    2
 
+// solution and optput ---------------------------------------------
+#define SOLTYPE_FLOAT   0
+#define SOLTYPE_FIX     1
+#define PROC_LS         0
+#define PROC_KF         1
+
 typedef Matrix<double, 3, 3> Matrix3d;
 typedef Matrix<double, 3, 1> Vector3d;
 typedef Matrix<double, Dynamic, Dynamic>    MatrixXd;
@@ -99,6 +105,8 @@ struct prcopt {             /* processing options */
    int freqtype_;           /* frequency to use */
    int ephtype_;            /* broadcast or precise eph to use */
    int clktype_;            /* clock type(broadcast or precise) */
+   int soltype_;            /* solution type 0: float, 1: fix */
+   int proctype_;           /* processing type 0: LS, 1: KF */
    unsigned short freqnum_; /* number of used frequency */
    unsigned short nsys_;    /* number of systems */
    unsigned short sitenum_; /* number of site */
@@ -258,6 +266,7 @@ struct sat_s {    /* satellite information */
     double elev_;       /* elevation angle */
     double azi_;        /* azimuth angle */
     double clk[2];      /* clock bias / drift */
+    double gf_;         /* geometry-free detection method */
     bool   isused;      /* true if using this satellite */
     obs_t* obs_;        /* observations */
     nav_t* eph_;        /* ephemeris */
@@ -279,7 +288,7 @@ struct res_t {  /* result for an epoch */
     double rpos_ecef_[3];           /* rover position */
     double bpos_blh_[3];            /* base position */
     double rpos_blh_[3];            /* rover position */
-    double baseline_[3];            /* baseline result */
+    double baseline_[3];            /* baseline result (n/e/u) */
     double enu[3];                  /* e/n/u respectively */
     double recv_clk_[MAXSITES];     /* reciever clock */
 public:

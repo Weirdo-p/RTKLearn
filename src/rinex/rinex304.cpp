@@ -56,24 +56,6 @@ int CDecodeRnx304::decode(char* infiles, prcopt opt) {
         }
     }
     in.close();
-    
-    // cout << "start to search eph" << endl;
-    // clock_t begin = clock();
-    // for (int i = 0; i < eph_->num; ++i) {
-    //     if (eph_->msg_[i].sys_ == SYS_GPS && eph_->msg_[i].prn_ == 12) {
-    //         cout << "find" << endl;
-    //     }
-    // }
-    // clock_t end = clock();
-    // cout << "time usage: " << double(end - begin) / CLOCKS_PER_SEC << endl;;
-    // ofstream out("./results/out.o", ios::app);
-    // for (int i = 0; i < opt.sitenum_; ++i) {
-    //     for (int j = 0; j < obss_[i].obsnum_; ++j) {
-    //         out << obss_[i].obs_[j].P[0] << " " << obss_[i].obs_[j].L[0] << 
-    //                 obss_[i].obs_[j].P[1] << " " << obss_[i].obs_[j].L[1] << 
-    //                 endl; 
-    //     }
-    // }
 }
 
 int CDecodeRnx304::scanobsfile(ifstream &in) {

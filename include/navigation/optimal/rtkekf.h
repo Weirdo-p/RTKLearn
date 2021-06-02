@@ -3,6 +3,7 @@
 
 #include "navigation/optimal/kalman.h"
 #include "navigation/navicommon.h"
+#include "navigation/optimal/optimal.h"
 
 #define VAR_INIT_STATE  (30 * 30)
 
@@ -22,8 +23,9 @@
 
 const int STATUS_ARRAY[] { RTK_INIT, RTK_NORMAL, RTK_LEAP, RTK_OBSCHANGE, RTK_REFCHANGE };
 
-class CRtkekf : public CKalman {
+class CRtkekf : public CKalman, public COptimal {
 public:
+    CRtkekf(prcopt* opt);
     CRtkekf();
     ~CRtkekf();
 
@@ -38,7 +40,7 @@ public:
      * @param   sysobs      number of each observations for each epoch
      * @return  state vectors
     *******************************************************************/
-    MatrixXd filter(sat* sats_epoch, res_t &res, MatrixXd obs, int nobs, int* refsats, int* sysobs);
+    bool optimize(sat* sats_epoch, res_t &res);
 
     /***************************************************************
      * get DD prediction observations by using time-predicted state
@@ -128,7 +130,7 @@ public: // initialize
      * @param   sat_b       [in]        satellite of base
      * @param   ar_pos      [in/out]    ambiguities position in state matrix
     *************************************************************************/
-    void initambiguity(sat_s ref_sat_r, sat_s ref_sat_b, sat_s sat_r, sat_s sat_b, int &ar_pos);
+    void initambiguity(sat_s ref_sat_r, sat_s ref_sat_b, sat_s sat_r, sat_s sat_b, int nddobs, int &ar_pos);
 
     void fixNumIncrease(sat* sats, int* obssys, int nobs, MatrixXd increase);
 
@@ -137,6 +139,23 @@ public: // initialize
     bool havesat(sat_s sat, MatrixXd changeObs);
 
     bool havesat(MatrixXd obssats, MatrixXd changeObs, int &pos);
+
+    /*********************************************************************
+     * cycle slip detection using geometry free (GF combination)
+     * @param   sats_epoch  [in]    satellite
+     * 
+     * the state will be re-initialized if the corresponding satellite is 
+     * slipped 
+    *********************************************************************/
+    void gfcycle(sat* sats_epoch);
+
+    /********************************************
+     * search gf combination of last epoch
+     * @param   sat_last    satellites last epoch
+     * @param   obj         target satellite
+     * @return  gf combination last epoch
+    ********************************************/
+    double searchgf(sat sat_last, sat_s obj);
 
 public: // set function
     /***************************************
@@ -148,13 +167,15 @@ public: // set function
 private:
     MatrixXd obssats(sat* sats_epoch, int nobs, int* refsats);
     void findrefpos(sat* sats_epoch, int* refsats);
-    sat_s findRef(sat sats, int sysflag, int prn);
     double dist(double* a, double* b);
-    double GetFreq(int sys, int freqflag);
     void statusFix(sat* sats_epoch, int nobs, int* refsats, int* obssys);
     void refchange(int* refsats, int* obssys);
     void initstate_s(sat* sats, int prn, int sysflag, int* ddobs);
-
+    int obsnumber(sat* sats);
+    void getDesignDim(sat sats, int nobs, int &row, int &col);
+    void getddobs(sat* sats, double* sitepos, int* refsats, int* sysobs, res_t res, MatrixXd &w);
+    void sortRefChange(int* new_ref_position, int* refsats, int* obssys);
+    
 private:
     int LeapSatsPos_[MAXOBS];   // position in design matrix
     int refsats_[MAXSYS];       // reference satellites at last epoch
@@ -165,8 +186,6 @@ private:
                                 // column 0: system flag, column 1: prn
                                 // column 2: ref sats flag
     res_t results_;             // kalman results   
-    prcopt* opt_;  
-    ofstream out_debug;             
 };
 
 #endif // _RTKEKF_H_

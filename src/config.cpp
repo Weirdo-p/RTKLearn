@@ -63,16 +63,40 @@ void CConfig::ParseConfLine(string line) {
 
 bool CConfig::ParseLabel(string label, string value) {
     bool issuccess = true;
-    if (label == "navsys") SetSys(value);
-    else if (label == "elecutoff")  return (SetCutOff(value));
-    else if (label == "mode")       return (SetMode(value));
-    else if (label == "eph")        return (SetEphType(value));
-    else if (label == "clk")        return (SetClkType(value));
-    else if (label == "freq")       return (SetFreq(value));
+    if (label == "navsys")          return SetSys(value);
+    else if (label == "elecutoff")  return SetCutOff(value);
+    else if (label == "mode")       return SetMode(value);
+    else if (label == "eph")        return SetEphType(value);
+    else if (label == "clk")        return SetClkType(value);
+    else if (label == "freq")       return SetFreq(value);
+    else if (label == "soltype")    return SetSoltype(value);
+    else if (label == "filtertype") return SetProctype(value);
     else {
         cout << "unsupported options: " << label << endl;
         return false;
     }
+}
+
+bool CConfig::SetSoltype(string value) {
+    transform(value.begin(), value.end(), value.begin(), ::tolower);
+    if (value == "float")
+        opt_.soltype_ = SOLTYPE_FLOAT;
+    else if (value == "fix")
+        opt_.soltype_ = SOLTYPE_FIX;
+    else return false;
+
+    return true;
+}
+
+bool CConfig::SetProctype(string value) {
+    transform(value.begin(), value.end(), value.begin(), ::tolower);
+    if (value == "kalman")
+        opt_.proctype_ = PROC_KF;
+    else if (value == "epoch") 
+        opt_.proctype_ = PROC_LS;
+    else return false;
+
+    return true;
 }
 
 bool CConfig::SetSys(string value) {
@@ -163,6 +187,7 @@ void CConfig::LoadSites(char* path) {
 
 void CConfig::ParseSiteLine(string line) {
     if (line[0] != ' ') return ;
+    if (line[0] == '#') return ;
     static int sitenum = 0;
     stringstream buff;
     buff << line;

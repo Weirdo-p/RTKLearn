@@ -5,6 +5,7 @@ CEphBase::CEphBase() {
 }
 
 bool CEphBase::satclk(Sattime time, sat_s &sat) {
+    if (!sat.eph_) return false;
     double t = time.Sow_ - sat.eph_->toc_.Sow_, ts = t;
     // relfix(time, sat);
     for (int i = 0; i < 5; ++i) 

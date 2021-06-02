@@ -1,32 +1,27 @@
 #include "navigation/optimal/rtkekf.h"
+#include "navigation/pnt/pntbase.h"
 
-MatrixXd CRtkekf::filter(sat* sats_epoch, res_t &res, MatrixXd obs, int nobs, int* refsats, int* sysobs) {
-    ofstream out("./kfdebug.txt");
-    out_debug.open("./debug_before_fix.txt", ios::app); // TODO
-    auto test = obssats(sats_epoch, nobs, refsats);
-    out_debug << "EPOCH: " << sats_epoch->sat_->obs_->time.Week_ << "  " << sats_epoch->sat_->obs_->time.Sow_ << endl;
-    out_debug << "observation numbers: " << nobs << endl;
-    out_debug << "state dim: " << state_.row() << endl;
-    out_debug << "last obssats: \n" << obssats_ << endl << endl;
-    out_debug << "now obssats: \n" << test << endl << endl;
-    out_debug.close();
-    out << state_ << endl << endl;
-    if (sats_epoch->sat_->obs_->time.Sow_ == 144090) {
-        auto obs_sats_test = obssats(sats_epoch, nobs, refsats);
-        out << obs_sats_test << endl << endl;
-        cout << "test" << endl;
-    }
+bool CRtkekf::optimize(sat* sats_epoch, res_t &res) {
+    int refsats[MAXSYS];
+    int nobs = obsnumber(sats_epoch);
+    chooseref(sats_epoch[1], refsats);
+    int row = 0, col = 0;
+    getDesignDim(sats_epoch[1], nobs, row, col);
+    int sysobs[MAXSYS] = {0};
+    getSysObs(sats_epoch[1], sysobs);
+    design_.resize(row, col); design_.Zero();
+    var_obs_.resize(row, row);
+    MatrixXd obs(row, 1);
+    getDesign(sats_epoch, nobs, res.rpos_ecef_, refsats, design_);
+    getweight(sats_epoch, refsats, nobs, var_obs_);
+    getddobs(sats_epoch, res.rpos_ecef_, refsats, sysobs, res, obs);
+    int issuccess = false;
+    var_obs_ = var_obs_.inverse(issuccess);
+
     updateStatus(obs, sats_epoch, nobs, refsats, res, sysobs);
     statusFix(sats_epoch, nobs, refsats, sysobs);
-    out_debug.open("./debug_after_fix.txt", ios::app); // TODO
-    test = obssats(sats_epoch, nobs, refsats);
-    out_debug << "EPOCH: " << sats_epoch->sat_->obs_->time.Week_ << "  " << sats_epoch->sat_->obs_->time.Sow_ << endl;
-    out_debug << "observation numbers: " << nobs << endl;
-    out_debug << "state dim: " << state_.row() << endl;
-    out_debug << "last obssats: \n" << obssats_ << endl << endl;
-    out_debug << "now obssats: \n" << test << endl << endl;
-    out_debug.close();
-    int issuccess = 0;
+    gfcycle(sats_epoch);
+    issuccess = 0;
     MatrixXd state_time_predict = state_trans_ * state_;
     MatrixXd var_state_time_predict = state_trans_ * var_state_ * state_trans_.transpose() + var_sys_;
     MatrixXd approx(obs.row(), 1);
@@ -38,16 +33,9 @@ MatrixXd CRtkekf::filter(sat* sats_epoch, res_t &res, MatrixXd obs, int nobs, in
     MatrixXd temp = K * design_;
     MatrixXd identity(temp.row(), temp.col()); identity.Identity();
     var_state_ = (identity - temp) * var_state_time_predict;
-
     for (int i = 0; i < 3; ++ i)
         res.rpos_ecef_[i] = state_(i, 0);
-    MatrixXd tmp = obs - approx;
-    out << state_ << endl;
-    out << tmp << endl << endl;
-    out << test << endl << endl;
-    out << obssats_ << endl << endl;
-    // cout << setprecision(15) << state_ << endl;
-    out.close();
+    return true;
 }
 
 void CRtkekf::getDDApprox(sat* sats, MatrixXd state, double* b_pos, int* refsats, MatrixXd &w) {
@@ -76,7 +64,7 @@ void CRtkekf::getDDApprox(sat* sats, MatrixXd state, double* b_pos, int* refsats
         int sys = 0;
         for (int i_freq = 0; i_freq < MAXFREQ; ++i_freq) {
             if ((opt_->freqtype_ & FREQ_ARRAY[i_freq]) == FREQ_ARRAY[i_freq]) {
-                double freq = GetFreq(sysflag, FREQ_ARRAY[i_freq]);
+                double freq = CPntbase::GetFreq(sysflag, FREQ_ARRAY[i_freq]);
                 w(num ++, 0) = dist_cal;
                 // states are: pos, GPS_Nf1, GPS_Nf2, BDS_NF1, BDS_NF2
                 for (int i_sys = 0; i_sys < MAXSYS; ++ i_sys) {
@@ -99,6 +87,12 @@ CRtkekf::CRtkekf() {
     memset(LeapSatsPos_, 0, sizeof(int) * MAXOBS);
     status_ = RTK_INIT;
     opt_ = nullptr;
+}
+
+CRtkekf::CRtkekf(prcopt* opt) {
+    if (!opt_) opt_ = opt;
+    memset(LeapSatsPos_, 0, sizeof(int) * MAXOBS);
+    status_ = RTK_INIT;
 }
 
 MatrixXd CRtkekf::obssats(sat* sats_epoch, int nobs, int* refsats) {
@@ -147,66 +141,46 @@ double CRtkekf::dist(double* a, double* b) {
     return sqrt(dist);
 }
 
-sat_s CRtkekf::findRef(sat sats, int sysflag, int prn) {
-    int nobs = sats.nsats_;
-    for (int isat = 0; isat < nobs; ++isat) {
-        if (sats.sat_[isat].sys_ == sysflag && sats.sat_[isat].prn_ == prn)
-            return sats.sat_[isat];
-    }
-}
-
-double CRtkekf::GetFreq(int sys, int freqflag) {
-    switch (sys) {
-    case SYS_GPS:
-        if (freqflag == FREQTYPE_L1)
-            return FREQ_L1;
-        else if (freqflag == FREQTYPE_L2)
-            return FREQ_L2;
-        else return FREQ_L5;
-    case SYS_BDS:
-        if (freqflag == FREQTYPE_L1)
-            return FREQ_B1I;
-        else if (freqflag == FREQTYPE_L2)
-            return FREQ_B3I;
-        else return FREQ_B2;
-    default:
-        return 0;
-    }
-}
-
 void CRtkekf::initstate(sat* sats, double* b_pos, int* refsats, res_t res) {
     int ar_pos = 3;
     for (int i = 0; i < 3; ++ i)
         state_(i, 0) = res.rpos_ecef_[i];
-    int ref_prn = -1, sysflag = -1;
+    int ref_prn = -1, sysflag = -1, sys_pos = -1;
     int nobs = sats->nsats_;
     for (int isat = 0; isat < nobs; ++isat) {
         if(!sats[1].sat_[isat].isused)  continue;
         for (int i = 0; i < MAXSYS; ++i) {
             if ((opt_->navsys_ & SYS_ARRAY[i]) == sats[1].sat_[isat].sys_) {
-                ref_prn = refsats[i]; sysflag = SYS_ARRAY[i];
+                ref_prn = refsats[i]; sysflag = SYS_ARRAY[i]; sys_pos = i;
                 break;
             }
         }
         if(sats[1].sat_[isat].prn_ == ref_prn && sats[1].sat_[isat].sys_ == sysflag) continue;
         sat_s ref_sat_r = findRef(sats[1], sysflag, ref_prn);
         sat_s ref_sat_b = findRef(sats[0], sysflag, ref_prn);
-        initambiguity(ref_sat_r, ref_sat_b, sats[1].sat_[isat], sats[0].sat_[isat], ar_pos);
+        int nddobs = sysobs_[sys_pos] - 1;
+        initambiguity(ref_sat_r, ref_sat_b, sats[1].sat_[isat], sats[0].sat_[isat], nddobs, ar_pos);
     }
 }
 
-void CRtkekf::initambiguity(sat_s ref_sat_r, sat_s ref_sat_b, sat_s sat_r, sat_s sat_b, int &ar_pos) {
+void CRtkekf::initambiguity(sat_s ref_sat_r, sat_s ref_sat_b, sat_s sat_r, sat_s sat_b, int nddobs, int &ar_pos) {
+    int num = 0;
     for (int i = 0; i < MAXFREQ; ++i) {
         if ((opt_->freqtype_ & FREQ_ARRAY[i]) == FREQ_ARRAY[i]) {
             double phase_obs = sat_r.obs_->L[i] - ref_sat_r.obs_->L[i]-
                 sat_b.obs_->L[i] + ref_sat_b.obs_->L[i];
             double pseu_obs = sat_r.obs_->P[i] - ref_sat_r.obs_->P[i]- 
                 sat_b.obs_->P[i] + ref_sat_b.obs_->P[i];
-            double freq = GetFreq(sat_r.sys_, FREQ_ARRAY[i]);
+            double freq = CPntbase::GetFreq(sat_r.sys_, FREQ_ARRAY[i]);
             double lambda = VEL_LIGHT / freq;
-            state_(ar_pos ++, 0) = (pseu_obs - phase_obs * lambda) / lambda;
+            if (num == 0)
+                state_(ar_pos, 0) = (pseu_obs - phase_obs * lambda) / lambda;
+            else 
+                state_(ar_pos + nddobs, 0) = (pseu_obs - phase_obs * lambda) / lambda;
+            ++ num;
         }
     }
+    ar_pos += 1;
 }
 
 void CRtkekf::initvarsys(int dim, double var) {
@@ -303,7 +277,7 @@ void CRtkekf::statusFix(sat* sats_epoch, int nobs, int* refsats, int* obssys) {
             case RTK_REFCHANGE:
                 refchange(refsats, obssys); status_ &= 0x3B;
                 memcpy(refsats_, refsats, sizeof(int) * MAXSYS);
-                // obssats_ = obssats(sats_epoch, nobs, refsats_);
+
                 break;
             case RTK_OBSCHANGE: {
                 MatrixXd obssats_epoch = obssats(sats_epoch, nobs, refsats_);
@@ -311,17 +285,13 @@ void CRtkekf::statusFix(sat* sats_epoch, int nobs, int* refsats, int* obssys) {
                 MatrixXd decrease;
                 if (checkObsIncrease(obssats_epoch, &increase)) {
                     fixNumIncrease(sats_epoch, obssys, nobs, increase);
-                    // status_ = RTK_NORMAL;
                     nobs_ = nobs;
                 }
                 if (checkObsDecrease(obssats_epoch, &decrease)) {
                     fixNumDecrease(sats_epoch, obssys, nobs, decrease);
-                    // status_ = RTK_NORMAL;
                     nobs_ = nobs;
                 }
                 status_ = RTK_NORMAL;
-                cout << increase << endl << endl;
-                cout << decrease << endl << endl;
                 break;
             }
             default:
@@ -329,23 +299,15 @@ void CRtkekf::statusFix(sat* sats_epoch, int nobs, int* refsats, int* obssys) {
             }
     }
     memcpy(sysobs_, obssys, sizeof(int) * MAXSYS);
-    // ofstream out("./kf_debug.txt");
-    // out << "*****************************\n" << obssats_ << endl << endl;
     obssats_ = obssats(sats_epoch, nobs, refsats_);
-    // out << obssats_ << endl << endl;
-    // out.close();
-
+    status_ = RTK_NORMAL;
 }
 
 void CRtkekf::fixNumIncrease(sat* sats, int* obssys, int nobs, MatrixXd increase) {
     int pos = -1, num_sys_obs = 0;
     int freqnum = opt_->freqnum_;
     bool isAfterRef = false;
-    ofstream out ("./kf_debug.txt");
-    out << increase << endl << endl;
-    out << obssats_ << endl << endl;
-    auto test = obssats(sats, nobs, refsats_);
-    out << test << endl << endl;
+
     for (int i = 0; i < sats->nsats_; ++ i) {
         if (!sats->sat_[i].isused) continue;
         bool isref = false;
@@ -373,13 +335,11 @@ void CRtkekf::fixNumIncrease(sat* sats, int* obssys, int nobs, MatrixXd increase
                 sysflag = i_sys;
         int total_num = 0;
         for (int tmp = 0; tmp < sysflag; ++ tmp) {
-            total_num += (tmp == sysflag ? sysobs_[tmp] : sysobs_[tmp] - 1); 
+            total_num += sysobs_[tmp] - 1; 
         }
         int pos_add = pos - total_num;
+        // if (isAfterRef) pos_add -= 1;
         for (int i_part = 0; i_part < opt_->nsys_ * opt_->freqnum_;  ++ i_part) {
-
-            // for (int i_sys = 0; i_sys < MAXSYS; ++ i_sys) {
-                // if (sats->sat_[i].sys_ != SYS_ARRAY[i_sys]) continue;
             int sys_dd_num = sysobs_[int(i_part / freqnum)]; // contain new sats and ref sats
             if (i_part == sysflag * 2 || i_part - 1 == sysflag * 2) {
                 // if (i_part - 1 == sysflag * 2) pos_add -= 1;  // new line added at i_part == i_sys * 2
@@ -390,7 +350,7 @@ void CRtkekf::fixNumIncrease(sat* sats, int* obssys, int nobs, MatrixXd increase
                     else if (i_row_t == pos_add) continue;
                     else    T_part(i_row_t, i_row_t - 1) = 1;
                 }
-                out << T_part << endl << endl;
+
                 T.block(row, col, T_part);
                 row += T_part.row(); col += T_part.col();
             } else if (i_part != sysflag * 2 || i_part - 1 != sysflag * 2) {
@@ -399,23 +359,19 @@ void CRtkekf::fixNumIncrease(sat* sats, int* obssys, int nobs, MatrixXd increase
                 T.block(row, col, T_part);
                 row += T_part.row(); col += T_part.col();
             }
-
-            // }
         }
         sysobs_[sysflag] += 1;
-        out << T << endl << endl;
-        out << state_ << endl << endl;
         state_ = T * state_;
         int ddobs[MAXSYS] = {0};
         initstate_s(sats, sats->sat_[i].prn_, sats[1].sat_[i].sys_, ddobs);
         for (int j = 0, num = 0; j < state_.row(); ++ j)
             if (state_(j, 0) == 0)
                 state_(j, 0) = ddobs[num ++];
-        out << state_ << endl << endl;
         var_state_ = T * var_state_ * T.transpose();
         state_trans_.resize(state_.row(), state_.row()); state_trans_.Identity();
         var_sys_.resize(state_.row(), state_.row()); var_sys_.Zero();
 
+        int tmp = pos;
         if (isAfterRef) pos += 1; // no need to consider ref sats for obssats
         pos += sysflag;
         for (int i_row = 0; i_row < T_info.row(); ++i_row) {
@@ -425,9 +381,6 @@ void CRtkekf::fixNumIncrease(sat* sats, int* obssys, int nobs, MatrixXd increase
             else 
                 T_info (i_row, i_row - 1) = 1;   // dual-freq
         }
-        out << obssats_ << endl;
-        auto test = obssats(sats, nobs, refsats_);
-        out << "test\n" << test << endl << endl;
         obssats_ = T_info * obssats_;
         for (int i_row = 0; i_row < obssats_.row(); ++ i_row)
             if (obssats_(i_row, 0) == 0) {
@@ -438,25 +391,15 @@ void CRtkekf::fixNumIncrease(sat* sats, int* obssys, int nobs, MatrixXd increase
             if (abs(var_state_(i_row, i_row)) <= 1e-8)
                 var_state_(i_row, i_row) = INIT_STATE_VAR * INIT_STATE_VAR;
         }
-        out << var_state_ << endl << endl;
-        // for (int i_row = 0; i_row < state_.row(); ++ i_row) 
-        //     if (state_(i_row, 0) == 0) 
-        //         initstate_s(sats, i_row);
-        out << state_ << endl << endl;
-        out << var_sys_ << endl;
-        out << obssats_ << endl << endl;
+        pos = tmp;  // for any number of satellites increase
     }
     nobs_ = nobs;
-    out.close();
 }
 
 void CRtkekf::fixNumDecrease(sat* sats, int* obssys, int nobs, MatrixXd decrease) {
     int num_sys_obs = 0;
     int freqnum = opt_->freqnum_;
     bool isafterRef = false;
-    ofstream out ("./kf_debug.txt");
-    out << decrease << endl << endl;
-    out << obssats_ << endl << endl;
     int ref_pos[MAXSYS];
     for (int i = 0; i < MAXSYS; i ++) ref_pos[i] = -1;
     for (int i = 0; i < obssats_.row(); ++ i) {
@@ -502,11 +445,8 @@ void CRtkekf::fixNumDecrease(sat* sats, int* obssys, int nobs, MatrixXd decrease
 
                 }
                 sysobs_[i_sys] -= 1;
-                out << state_ << endl;
-                out << T_trans << endl << endl;
                 state_ = T_trans * state_;
                 var_state_ = T_trans * var_state_ * T_trans.transpose();
-                out << var_state_ << endl;
                 if (isafterRef) pos += 1;
                 pos += (total_obs == 0 ? total_obs : total_obs + 1);
                 MatrixXd T_info(obssats_.row() - 1, obssats_.row()); T_info.Zero();
@@ -518,10 +458,6 @@ void CRtkekf::fixNumDecrease(sat* sats, int* obssys, int nobs, MatrixXd decrease
                 state_trans_.resize(state_.row(), state_.row()); state_trans_.Identity();
                 var_sys_.resize(state_.row(), state_.row()); var_sys_.Zero();
                 nobs_ = nobs;
-                out << obssats_ << endl << endl;
-                out << state_ << endl << endl;
-                out << T_info << endl << endl;
-                out << T_trans << endl << endl;  
             }
         }
     }
@@ -576,23 +512,21 @@ void CRtkekf::refchange(int* refsats, int* obssys) {
                 obssats_(i_row, 2) == 1)
                 if (i_row <= new_ref_position[i_sys] + total)
                     new_ref_position[i_sys] -= 1;
-        // if (total != 0) new_ref_position[i_sys] -= 1;
     }
     
     MatrixXd trans(state_.row(), state_.row()); trans.Zero();
     for (int i = 0; i < 3; ++ i) trans(i, i) = 1;
 
     int row = 3;
-    // for (int i_part = 0; i_part < opt_->freqnum_ * opt_->nsys_; ++ i_part)
     for (int i_sys = 0; i_sys < MAXSYS; ++ i_sys) {
         int total = 0;
         for (int i = 0; i < i_sys; i ++) total += (obssys[i] - 1) * freqnum;
         int ddobs = obssys[i_sys] - 1;
         if (refsats_[i_sys] == refsats[i_sys] || new_ref_position[i_sys] == -1) {
-            MatrixXd identity(ddobs * freqnum, ddobs * freqnum);
+            MatrixXd identity(ddobs, ddobs);
             identity.Identity();
             for (int i_freq = 0; i_freq < freqnum; ++ i_freq)
-                trans.block(row + total + i_freq * obssys[i_sys], row + total + i_freq * obssys[i_sys], identity);
+                trans.block(row + total + i_freq * (obssys[i_sys] - 1), row + total + i_freq * (obssys[i_sys] - 1), identity);
             continue;
         }
         MatrixXd trans_part(ddobs, ddobs);
@@ -604,28 +538,64 @@ void CRtkekf::refchange(int* refsats, int* obssys) {
                 if (i == new_ref_position[i_sys]) continue;
                 trans_part(i, i) = 1;
             }
-            cout << trans_part << endl << endl;
             trans.block(row + total + ddobs * ifreq, row + total + ddobs * ifreq, trans_part);
         }
         
-        // for (int i = i_sys, total = 0; i >= 0; i --) total += (obssys[i] - 1) * freqnum;
-        // for (; row < trans.row() && row < total + 3; row += total) {
-        //     for (int i_freq = 0; i_freq < freqnum; ++ i_freq) {
-        //         trans(row, new_ref_position[i_sys] + i_freq * total / freqnum) = -1;
-        //         if (row == new_ref_position[i_sys] + i_freq * total / freqnum) continue;
-        //         trans(row + i_freq * total / freqnum, row + i_freq * total / freqnum) = 1; // TODO: not tested
-        //     }
-        // }
     }
-    ofstream out ("./trans.txt");
-    out << obssats_ << endl << endl;
-    out << refsats[0] << "  " << refsats[1] << endl << endl;
-    out << state_ << endl << endl;
     state_ = trans * state_;
     var_state_ = trans * var_state_ * trans.transpose();
-    out << state_ << endl << endl;
-    out << trans << endl << endl;
-    out.close();
+    sortRefChange(new_ref_position, refsats, obssys);
+}
+
+void CRtkekf::sortRefChange(int* new_ref_position, int* refsats, int* obssys) {
+    int old_ref_position[MAXSYS];
+    int freqnum = opt_->freqnum_;
+    for (int i_sys = 0; i_sys < MAXSYS; ++ i_sys) {
+        if (new_ref_position[i_sys] == -1) continue;
+        int total = 0;
+        for (int i = 0; i < i_sys; i ++) total += obssys[i];
+
+        for (int i_row = 0; i_row < obssats_.row(); ++ i_row) 
+            if (obssats_(i_row, 0) == SYS_ARRAY[i_sys] && 
+                obssats_(i_row, 1) == refsats_[i_sys]) {
+                // position of L1-ambiguity 
+                old_ref_position[i_sys] = i_row - total; 
+            }
+        if (old_ref_position[i_sys] > new_ref_position[i_sys])
+            old_ref_position[i_sys] -= 1;
+        
+        total = 0;
+        for (int i = 0; i < i_sys; i ++) total += (obssys[i] - 1);
+
+        int ddobs = obssys[i_sys] - 1;
+        for (int i_freq = 0; i_freq < freqnum; ++ i_freq) {
+            int row = 3 + total * freqnum + ddobs * i_freq;
+            // for the part will be sorted to obssats_ position
+            MatrixXd part_state(ddobs, state_.col());
+
+            for (int i = 0; i < ddobs; ++ i)
+                part_state(i, 0) = state_(row + i, 0);
+            
+            MatrixXd temp_state(1, state_.col());
+            int new_ref_pos = new_ref_position[i_sys];
+            int old_ref_pos = old_ref_position[i_sys];
+            temp_state(0, 0) = part_state(new_ref_pos, 0);
+            
+            if (new_ref_pos == old_ref_pos) continue;
+            else if (new_ref_pos < old_ref_pos) // up move
+                for (int i = 0; i < old_ref_pos - new_ref_pos; ++ i) {
+                    part_state(new_ref_pos + i, 0) = part_state(new_ref_pos + i + 1, 0);
+                }
+            else // down move
+                for (int i = new_ref_pos - 1; i >= old_ref_pos; -- i) {
+                    part_state(i + 1, 0) = part_state(i, 0);
+                }
+            part_state(old_ref_pos, 0) = temp_state(0, 0);
+
+            state_.block(row, 0, part_state);
+        }
+    }
+
 }
 
 void CRtkekf::initstate_s(sat* sats, int prn, int sys, int* ddobs) {
@@ -645,10 +615,6 @@ void CRtkekf::initstate_s(sat* sats, int prn, int sys, int* ddobs) {
         }
         if (sats->sat_[isat].sys_ != sys || sats->sat_[isat].prn_ != prn)
             continue;
-        // if(sats[1].sat_[isat].prn_ == ref_prn && sats[1].sat_[isat].sys_ == sysflag) {
-        //     pos += 2;
-        //     continue;
-        // }
         sat_s ref_sat_r = findRef(sats[1], sysflag, ref_prn);
         sat_s ref_sat_b = findRef(sats[0], sysflag, ref_prn);
         sat_s sat_r = sats[1].sat_[isat], sat_b = sats[0].sat_[isat];
@@ -658,12 +624,128 @@ void CRtkekf::initstate_s(sat* sats, int prn, int sys, int* ddobs) {
                     sat_b.obs_->L[i] + ref_sat_b.obs_->L[i];
                 double pseu_obs = sat_r.obs_->P[i] - ref_sat_r.obs_->P[i]- 
                     sat_b.obs_->P[i] + ref_sat_b.obs_->P[i];
-                double freq = GetFreq(sat_r.sys_, FREQ_ARRAY[i]);
+                double freq = CPntbase::GetFreq(sat_r.sys_, FREQ_ARRAY[i]);
                 double lambda = VEL_LIGHT / freq;
                 ddobs[num ++] = (pseu_obs - phase_obs * lambda) / lambda;
             }
         }
         return;
+    }
+}
+
+void CRtkekf::gfcycle(sat* sats_epoch) {
+    static sat* sat_last_epoch = nullptr;
+    const double THRESHOLD = 0.0131; // unit: meter
+    if (opt_->freqnum_ < 2) return; // at least dual-freq
+    for (int i_site = 0; i_site < opt_->sitenum_; ++ i_site) {
+        int pos = -1;
+        bool isafterref = false;
+        for (int i_sat = 0; i_sat < sats_epoch[i_site].nsats_; ++ i_sat) {
+            if (!sats_epoch[i_site].sat_[i_sat].isused) continue;
+            pos += 1;
+
+            // gf combination
+            double gf = 0;
+            for (int i_freq = 0; i_freq < MAXFREQ; ++ i_freq) {
+                if ((opt_->freqtype_ & FREQ_ARRAY[i_freq]) == FREQ_ARRAY[i_freq]) {
+                    double freq = CPntbase::GetFreq(sats_epoch[i_site].sat_[i_sat].sys_, FREQ_ARRAY[i_freq]);
+                    double lambda = VEL_LIGHT / freq;
+                    gf += sats_epoch[i_site].sat_[i_sat].obs_->L[i_freq] * lambda * pow(-1, i_freq);
+                }
+            }
+            sats_epoch[i_site].sat_[i_sat].gf_ = gf;
+            if (!sat_last_epoch) continue; // not initialized 
+            int sysflag = 0;
+            for (int i_sys = 0; i_sys < MAXSYS; ++ i_sys) 
+                if (SYS_ARRAY[i_sys] == sats_epoch[i_site].sat_[i_sat].sys_)
+                    sysflag = i_sys;
+            if (sats_epoch[i_site].sat_[i_sat].prn_ == refsats_[sysflag]) isafterref = true;
+            int state_pos = pos;
+            int ddobs = 0, freqnum = opt_->freqnum_;
+            for (int i_sys = 0; i_sys < sysflag; ++ i_sys) ddobs += (sysobs_[i_sys] - 1);
+            state_pos -= (ddobs + sysflag); state_pos += freqnum * ddobs;
+            if (isafterref) state_pos -= 1;
+            state_pos += 3;
+            double last_gf = searchgf(sat_last_epoch[i_site], sats_epoch[i_site].sat_[i_sat]);
+            if (last_gf == -1) continue;
+
+            if (abs(gf - last_gf) >= THRESHOLD) { // cycle slip occurred, reset state
+                auto ref_sat_b = findRef(sats_epoch[0], sats_epoch[0].sat_[i_sat].sys_, refsats_[sysflag]);
+                auto ref_sat_r = findRef(sats_epoch[1], sats_epoch[1].sat_[i_sat].sys_, refsats_[sysflag]);
+                auto sat_b = sats_epoch[0].sat_[i_sat];
+                auto sat_r = sats_epoch[1].sat_[i_sat];
+                initambiguity(ref_sat_r, ref_sat_b, sat_r, sat_b, sysobs_[sysflag] - 1, state_pos);
+                state_pos -= 1;
+                for (int i = 0; i < var_state_.row(); ++ i) 
+                    if (i != state_pos) var_state_(state_pos, i) = 0;
+                    else var_state_(state_pos, state_pos) = 30 * 30;
+                state_pos += sysobs_[sysflag] - 1;
+
+                for (int i = 0; i < var_state_.row(); ++ i) 
+                    if (i != state_pos) var_state_(state_pos, i) = 0;
+                    else var_state_(state_pos, state_pos) = 30 * 30;
+            }
+        } // each satellite loop
+    } // each site loop
+
+    if (!sat_last_epoch) sat_last_epoch = new sat[opt_->sitenum_];
+    memcpy(sat_last_epoch, sats_epoch, sizeof(sat) * opt_->sitenum_);
+}
+
+double CRtkekf::searchgf(sat sat_last, sat_s obj) {
+    for (int isat = 0; isat < sat_last.nsats_; ++ isat)
+        if (sat_last.sat_[isat].sys_ == obj.sys_ && sat_last.sat_[isat].prn_ == obj.prn_)
+            return sat_last.sat_[isat].gf_;
+    return -1;
+}
+
+int CRtkekf::obsnumber(sat* sats) {
+    int nsites = opt_->sitenum_;
+    int nobs = 0;
+    #pragma omp parallel for
+    for (int i_sat = 0; i_sat < sats->nsats_; ++ i_sat) {
+        if (!sats[0].sat_[i_sat].isused || !sats[1].sat_[i_sat].isused)
+            sats[0].sat_[i_sat].isused = sats[1].sat_[i_sat].isused = false;
+        else nobs += 1;
+    }
+    return nobs;
+}
+
+void CRtkekf::getDesignDim(sat sats, int nobs, int &row, int &col) {
+    int nsys = opt_->nsys_, nfreq = opt_->freqnum_;
+    row = col = 0;    
+    row = (nobs - opt_->nsys_) * nfreq * 2;
+    col = (nobs - opt_->nsys_) * nfreq + 3;
+}
+
+void CRtkekf::getddobs(sat* sats, double* sitepos, int* refsats, int* sysobs, res_t res, MatrixXd &w) {
+    int nobs = sats->nsats_;
+    int ref_prn = -1, sysflag = -1;
+    int num = 0;
+    double rover_pos[3] = {0};
+    for (int i = 0; i < 3; ++i) rover_pos[i] = res.rpos_ecef_[i];
+    for (int isat = 0; isat < nobs; ++isat) {
+        if(!sats[1].sat_[isat].isused)  continue;
+        for (int i = 0; i < MAXSYS; ++i) {
+            if ((opt_->navsys_ & SYS_ARRAY[i]) == sats[1].sat_[isat].sys_) {
+                ref_prn = refsats[i]; sysflag = SYS_ARRAY[i];
+                break;
+            }
+        }
+        if(sats[1].sat_[isat].prn_ == ref_prn && sats[1].sat_[isat].sys_ == sysflag) continue;
+        sat_s ref_sat_r = findRef(sats[1], sysflag, ref_prn);
+        sat_s ref_sat_b = findRef(sats[0], sysflag, ref_prn);
+        for (int i = 0; i < MAXFREQ; ++i) {
+            if ((opt_->freqtype_ & FREQ_ARRAY[i]) == FREQ_ARRAY[i]) {
+                double phase_obs = sats[1].sat_[isat].obs_->L[i] - ref_sat_r.obs_->L[i]-
+                    sats[0].sat_[isat].obs_->L[i] + ref_sat_b.obs_->L[i];
+                double pseu_obs = sats[1].sat_[isat].obs_->P[i] - ref_sat_r.obs_->P[i]- 
+                    sats[0].sat_[isat].obs_->P[i] + ref_sat_b.obs_->P[i];
+                double freq = CPntbase::GetFreq(sysflag, FREQ_ARRAY[i]);
+                w(num ++, 0) = pseu_obs;
+                w(num ++, 0) = phase_obs * (VEL_LIGHT / freq);
+            }
+        }
     }
 }
 

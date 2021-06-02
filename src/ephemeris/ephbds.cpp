@@ -7,6 +7,7 @@ CEphBds::CEphBds() {
 }
 
 bool CEphBds::satpos(Sattime time, sat_s &sat) {
+    if (!sat.eph_) return false;
     if(sat.eph_->sys_ != sat.obs_->sys || sat.eph_->prn_ != sat.obs_->sat) return false;
     // refer to GPS ICD
     Sattime t_ = time - sat.eph_->toe_;
@@ -116,6 +117,7 @@ void CEphBds::GeoInclineFix(double* Gk, double tk, double* ecefpos) {
 }
 
 bool CEphBds::relfix(Sattime time, sat_s &sat) {
+    if (!sat.eph_) return false;
     Sattime t_ = time - sat.eph_->toe_;
     double tk = t_.Week_ * 604800.0 + t_.Sow_;
     if (!isExpired(tk)) return false;

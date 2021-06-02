@@ -12,6 +12,7 @@ public:
     virtual int process() override;
     int spp(sat* sat);
     int spp_site(int isite, sat* sats);
+    virtual int excludesats(sat &sat) override;
 
 public:
     res_t* getRes();

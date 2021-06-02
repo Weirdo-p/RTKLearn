@@ -31,7 +31,7 @@ public:
      * @param   sat satellite
      * @return  used satellites number
     **************************************/
-    int excludesats(sat &sat);
+    virtual int excludesats(sat &sat) { }
 
     /*****************************************
      * earth rotation fix
@@ -110,14 +110,6 @@ protected:
     ******************************************/
     void GetNonCombine(sat sat, MatrixXd &w);
 
-    /***************************************************
-     * get frequencies
-     * @param   sys         [in]    systems (SYS_???)
-     * @param   freqflag    [in]    freqtype (FREQ_???)
-     * @return  frequency
-    ****************************************************/
-    double GetFreq(int sys, int freqflag);
-
     /******************************
      * trop fix
      * @param   sats    satellites
@@ -131,8 +123,8 @@ protected:
 
     void getSysObs(sat sats, int* nobs_sys);
 
-    double getSatUserPos(sat_s sats, double* sitepos);
-
+    
+public: // static function
     /************************************************
      * get weight by elevation 
      * 
@@ -142,7 +134,19 @@ protected:
      * @param   alpha   [in]    coeff
      * @return  sigma
     ************************************************/
-    double weightbyelev(double elev, double sigma0, double alpha);
+    static double weightbyelev(double elev, double sigma0, double alpha);
+
+    /***************************************************
+     * get frequencies
+     * @param   sys         [in]    systems (SYS_???)
+     * @param   freqflag    [in]    freqtype (FREQ_???)
+     * @return  frequency
+    ****************************************************/
+    static double GetFreq(int sys, int freqflag);
+
+
+    static double getSatUserPos(sat_s sats, double* sitepos);
+
 
 public: // set function
     void setopt(prcopt opt);
@@ -152,8 +156,7 @@ protected:
     prcopt*     opt_;       /* options */
     CRnxBase*   rnx_;       /* rinex reader */
     CEphBase*   satpos_;    /* satellite postion */
-    CLeastsq    optimizer_; /* least square */
-    CRtkekf     kf_;        /* kalman filter */
+    COptimal*   optimizer_; /* least square */
 };
 
 #endif // _PNTBASE_H_

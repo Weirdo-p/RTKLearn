@@ -74,13 +74,14 @@ int CPntspp::spp_site(int i_site, sat* sats) {
         GetDesign(*sats, sitepos_ecef, B);
         // cout << B << endl << endl;
         // cout << pos << endl << endl;
-        if(!optimizer_.optimize(B, P, w)) {
+        CLeastsq optimizer;
+        if(!optimizer.optimize(B, P, w)) {
             memset(sitepos_ecef, 0, sizeof(double) * 3);
             cout << w << endl;
             cout << B << endl;
             continue;
         }
-        MatrixXd x = optimizer_.Getx();
+        MatrixXd x = optimizer.Getx();
         for (int i = 0; i < x.row(); ++i) pos(i, 0) += x(i, 0);
         setres(sitepos_ecef, sitepos_blh, type, pos);
         if (x.norm() < 1E-6)
@@ -147,4 +148,33 @@ void CPntspp::Getl(int i_site, sat sats, double* sitepos, MatrixXd pos, MatrixXd
 
 res_t* CPntspp::getRes() {
     return res_;
+}
+
+int CPntspp::excludesats(sat &sat) {
+    int satnum = sat.nsats_;
+    int n = 0;
+    double cutoff = opt_->elecutoff_;
+    for(int isat = 0; isat < satnum; ++ isat) {
+        if(sat.sat_[isat].elev_ != 0 && sat.sat_[isat].elev_ < opt_->elecutoff_) {
+            sat.sat_[isat].isused = false; continue;
+        }
+        if (!sat.sat_[isat].eph_) {
+            sat.sat_[isat].isused = false; continue;
+        }
+        else {
+            bool isobs = true;
+            for (int i = 0; i < MAXFREQ; ++i)
+                if ((opt_->freqtype_ & FREQ_ARRAY[i]) == FREQ_ARRAY[i] && 
+                    abs(sat.sat_[isat].obs_->P[i]) <= 1e-6) {
+                        isobs = false; break;
+                    }
+            if (isobs) {
+                n += 1;
+                sat.sat_[isat].isused = true;
+            }
+            else sat.sat_[isat].isused = false;
+        }
+    }
+
+    return n;
 }

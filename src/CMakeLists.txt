@@ -19,4 +19,6 @@ add_library(pnt SHARED
 add_library(optimal SHARED
         optimal/leastsq.cpp
         optimal/kalman.cpp
-        optimal/rtkekf.cpp)
+        optimal/rtkekf.cpp
+        optimal/optimal.cpp)
+        

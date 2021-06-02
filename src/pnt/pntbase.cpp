@@ -10,7 +10,7 @@
 
 CPntbase::CPntbase() {
     rnx_ = nullptr; satpos_ = nullptr;
-    opt_ = nullptr;
+    opt_ = nullptr; optimizer_ = nullptr;
     res_ = new res_t;
     memset(res_, 0, sizeof(res_t));
 }
@@ -21,6 +21,13 @@ CPntbase::CPntbase(prcopt opt) {
     rnx_ = nullptr; satpos_ = nullptr;
     res_ = new res_t;
     memset(res_, 0, sizeof(res_t));
+
+    if (optimizer_)
+        return;
+    if (opt.proctype_ == PROC_LS)
+        optimizer_ = new CLeastsq();
+    else if (opt.proctype_ == PROC_KF)
+        optimizer_ = new CRtkekf();
 }
 
 void CPntbase::readRinex(char** paths, int n) {
@@ -91,6 +98,7 @@ bool CPntbase::satpos(sat* sats) {
     int sitenum = opt_->sitenum_;
     for (int i_site = 0; i_site < sitenum; ++i_site) {
         for (int i_sat = 0; i_sat < sats[i_site].nsats_; ++ i_sat) {
+            if (!sats[i_site].sat_[i_sat].eph_) continue;
             bindEph(sats[i_site].sat_[i_sat].sys_);
             Sattime tobs = sats[i_site].sat_[i_sat].obs_->time;
             double P = searchpseu(sats[i_site].sat_[i_sat].obs_->P);
@@ -157,45 +165,12 @@ void CPntbase::earthRotateFix(sat* sats) {
     int sitenum = opt_->sitenum_;
     for (int i_site = 0; i_site < sitenum; ++ i_site)
         for (int i_sat = 0; i_sat < sats[i_site].nsats_; ++ i_sat) {
+            if (!sats[i_site].sat_[i_sat].eph_) continue;
             bindEph(sats[i_site].sat_[i_sat].sys_);
             Sattime dt = sats[i_site].sat_[i_sat].obs_->time -sats[i_site].sat_[i_sat].eph_->sig_;
             satpos_->earthRotateFix(dt._2sec(), sats[i_site].sat_[i_sat]);
             delete satpos_; satpos_  = nullptr;
         }
-}
-
-int CPntbase::excludesats(sat &sat) {
-    int satnum = sat.nsats_;
-    double cutoff = opt_->elecutoff_;
-    for(int isat = 0; isat < satnum; ++ isat) {
-        if(sat.sat_[isat].elev_ != 0 && sat.sat_[isat].elev_ < opt_->elecutoff_) {
-            sat.sat_[isat].isused = false; continue;
-        }
-        // if ((sat.sat_[isat].prn_ <= 5) && sat.sat_[isat].sys_ == SYS_BDS) {
-        //     sat.sat_[isat].isused = false; continue;
-        // }
-        if ((sat.sat_[isat].prn_ >= 59) && sat.sat_[isat].sys_ == SYS_BDS) {
-            sat.sat_[isat].isused = false; continue;
-        }
-
-        if(sat.sat_[isat].prn_ == 5 && sat.sat_[isat].sys_ == SYS_BDS) {
-            sat.sat_[isat].isused = false; continue;
-        }
-
-        else {
-            bool isobs = true;
-            for (int i = 0; i < MAXFREQ; ++i)
-                if ((opt_->freqtype_ & FREQ_ARRAY[i]) == FREQ_ARRAY[i] && 
-                    abs(sat.sat_[isat].obs_->P[i]) <= 1e-6) {
-                        isobs = false; break;
-                    }
-            if (isobs) {
-                sat.sat_[isat].isused = true;
-            }
-            else sat.sat_[isat].isused = false;
-        }
-
-    }
 }
 
 void CPntbase::satazel(double* site, sat &sat) {
@@ -229,6 +204,7 @@ int CPntbase::usesys(sat &sats) {
 void CPntbase::GetLC(sat sat, MatrixXd &w) {
     int satnum = sat.nsats_, num = 0;
     for (int i_sat = 0; i_sat < satnum; ++ i_sat) {
+        if (!sat.sat_[i_sat].isused) continue;
         if (!sat.sat_[i_sat].isused) continue;
         int p_pos[2] = {0};  // used pseudorange position
         for (int i = 0, j = 0; i < MAXFREQ; ++ i) 
@@ -302,8 +278,6 @@ void CPntbase::setres(double* sitepos_ecef, double* sitepos_blh, Ellipsoid type,
         sitepos_ecef[i] = result(i, 0);
     }
     XYZ2BLH(sitepos_ecef, type, sitepos_blh);
-    // XYZ2NEU(sitepos_ecef, )
-    // res_->recv_clk_ = 
 }
 
 void CPntbase::selectPos(double** xzy, double** blh, int i_site) {
@@ -360,3 +334,4 @@ double CPntbase::weightbyelev(double elev, double sigma0, double alpha) {
     double cosE = cos(elev);
     return (sigma02 * (1.0 * alpha * cosE * cosE));
 }
+

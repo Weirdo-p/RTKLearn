@@ -39,12 +39,14 @@ private: // processing configurations
     void Loadprcopt(char* path);    /* load process.conf */
     void ParseConfLine(string line);    /* parse a line of process.conf */
     bool ParseLabel(string label, string value);  /* parse parameter */
-    void SetSys(string value);
+    bool SetSys(string value);
     bool SetCutOff(string value);   // elevation cut-off
     bool SetMode(string value);     // processing mode
     bool SetEphType(string value);
     bool SetClkType(string value);
     bool SetFreq(string value);
+    bool SetSoltype(string value);  // solution type
+    bool SetProctype(string value); // KF or LS
 
 private: // sites configurations
     void LoadSites(char* path);

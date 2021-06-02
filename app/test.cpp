@@ -11,6 +11,7 @@
 #include "navigation/pnt/pntspp.h"
 #include "navigation/pnt/pntrtk.h"
 #include "navigation/optimal/rtkekf.h"
+#include "navigation/optimal/optimal.h"
 using namespace std;
 
 int main(int argv, char** argc) {

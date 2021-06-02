@@ -27,7 +27,7 @@ void CKalman::setObsMatrix(MatrixXd design) {
     design_ = design;
 }
 
-MatrixXd CKalman::filter(MatrixXd obs, MatrixXd h) {
+MatrixXd CKalman::optimize(MatrixXd obs, MatrixXd h) {
     int issuccess = 0;
     MatrixXd state_time_predict = state_trans_ * state_;
     MatrixXd var_state_time_predict = state_trans_ * var_state_ * state_trans_.transpose() + var_sys_;
