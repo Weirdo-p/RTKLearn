@@ -15,6 +15,9 @@ public: // set function
     ***************************************/
     void setopt(prcopt* opt);
     virtual bool optimize(sat* sats_epoch, res_t &res) { }
+    virtual MatrixXd GetState() { }
+    virtual MatrixXd GetVar() { }
+    
 
 protected:
     void getDesignDim(sat sats, int nobs, int &row, int &col);

@@ -17,7 +17,6 @@ bool CRtkekf::optimize(sat* sats_epoch, res_t &res) {
     getddobs(sats_epoch, res.rpos_ecef_, refsats, sysobs, res, obs);
     int issuccess = false;
     var_obs_ = var_obs_.inverse(issuccess);
-
     updateStatus(obs, sats_epoch, nobs, refsats, res, sysobs);
     statusFix(sats_epoch, nobs, refsats, sysobs);
     gfcycle(sats_epoch);
@@ -174,9 +173,9 @@ void CRtkekf::initambiguity(sat_s ref_sat_r, sat_s ref_sat_b, sat_s sat_r, sat_s
             double freq = CPntbase::GetFreq(sat_r.sys_, FREQ_ARRAY[i]);
             double lambda = VEL_LIGHT / freq;
             if (num == 0)
-                state_(ar_pos, 0) = (pseu_obs - phase_obs * lambda) / lambda;
+                state_(ar_pos, 0) = -(pseu_obs - phase_obs * lambda) / lambda;
             else 
-                state_(ar_pos + nddobs, 0) = (pseu_obs - phase_obs * lambda) / lambda;
+                state_(ar_pos + nddobs, 0) = -(pseu_obs - phase_obs * lambda) / lambda;
             ++ num;
         }
     }
@@ -749,3 +748,10 @@ void CRtkekf::getddobs(sat* sats, double* sitepos, int* refsats, int* sysobs, re
     }
 }
 
+MatrixXd CRtkekf::GetState() {
+    return state_;
+}
+
+MatrixXd CRtkekf::GetVar() {
+    return var_state_;
+}

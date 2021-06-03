@@ -62,37 +62,43 @@ using namespace std;
 #define SYSTEMS         "GC"        /* supported systems */
 
 // ephemeris type --------------------------------------------------
-#define EPH_PREC    0
-#define EPH_BRDC    1
+#define EPH_PREC    0       /* using precise ephemris */
+#define EPH_BRDC    1       /* using broadcast ephemeris */
 
 // time related ----------------------------------------------------
-#define GPST2UTC   -18
-#define BDT2GPST    14
-
-#define MAXEPH      36
+#define GPST2UTC   -18      /* difference between GPS and UTC */
+#define BDT2GPST    14      /* difference between BDS and GPS */
 
 // satellite define ------------------------------------------------
-#define MAXGPSSATS  32
-#define MAXBDSSATS  64
+#define MAXGPSSATS  32      /* MAX gps satellites number */
+#define MAXBDSSATS  64      /* MAX bds satellites number */
 #define MAXSTAS     (MAXGPSSATS + MAXBDSSATS)
-#define MAXOBS      64
+#define MAXOBS      64      /* MAX observations on an epoch */
 
 // max supported sites ---------------------------------------------
-#define MAXSITES    2
+#define MAXSITES    2       /* max used sites */
 
 // solution and optput ---------------------------------------------
-#define SOLTYPE_FLOAT   0
-#define SOLTYPE_FIX     1
-#define PROC_LS         0
-#define PROC_KF         1
+#define SOLTYPE_FLOAT   0   /* output float solutions */
+#define SOLTYPE_FIX     1   /* output fix solutions */
+#define PROC_LS         0   /* output Least Square solution */
+#define PROC_KF         1   /* output Extended Kalman Filter solution (forward) */
 
-typedef Matrix<double, 3, 3> Matrix3d;
-typedef Matrix<double, 3, 1> Vector3d;
-typedef Matrix<double, Dynamic, Dynamic>    MatrixXd;
+// ambiguity related --------------------------------------------------
+#define RATIO_THRES     3   /* ambiguity fix threshold */
+#define FIX_SOLU        1
+#define FLOAT_SOLU      2
+#define SPP_SOLU        3        
 
+// Array declaration -----------------------------------------------
 const int SYS_ARRAY[] = {SYS_GPS, SYS_BDS};
 const int FREQ_ARRAY[] = {FREQTYPE_L1, FREQTYPE_L2, FREQTYPE_L3};
 const int GEO[] = {1, 2, 3, 4, 5, 59, 60, 61};
+
+// typedef matrix
+typedef Matrix<double, 3, 3> Matrix3d;
+typedef Matrix<double, 3, 1> Vector3d;
+typedef Matrix<double, Dynamic, Dynamic> MatrixXd;
 
 
 // ellipsoid type --------------------------------------------------
@@ -284,6 +290,8 @@ public:
 };
 
 struct res_t {  /* result for an epoch */
+    int    ratio_;                  /* LAMBDA ratio value */
+    unsigned int ambi_flag_;             /* 1: fix solution, 2: float solution, 3: spp */
     double bpos_ecef_[3];           /* base position */
     double rpos_ecef_[3];           /* rover position */
     double bpos_blh_[3];            /* base position */

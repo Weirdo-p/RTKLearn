@@ -79,6 +79,8 @@ public:
 
     void SetElement(const int row, const int col, const Type num) const;
 
+    Type* _2array();
+
 /* override some operators */
 public:
     /*********************
@@ -90,6 +92,9 @@ public:
     Matrix(int row, int col);
 
     Matrix<Type, _0, _1> operator+(const Matrix<Type, _0, _1> &matrix);
+
+    template<int srow, int scol>
+    Matrix<Type, Dynamic, Dynamic> block(int nrow, int ncol);
 
     template<class Type_, class Param_Type, int _0_, int _1_>
     friend Matrix<Type_, _0_, _1_> operator+(Param_Type num, const Matrix<Type_, _0_, _1_> &matrix);
@@ -725,6 +730,26 @@ Matrix<Type, _0, _1> Matrix<Type, _0, _1>::operator*(const int a) {
             temp(i, j) = this->operator()(i, j) * a;
     }
     return temp;
+}
+
+template <class Type, int _0, int _1>
+Type* Matrix<Type, _0, _1>::_2array() {
+    if (!data) return nullptr;
+    return data;
+}
+
+template <class Type, int _0, int _1>
+template<int srow, int scol>
+Matrix<Type, Dynamic, Dynamic> Matrix<Type, _0, _1>::block(int nrow, int ncol) {
+    if (srow + nrow > rows || scol + ncol > cols) {
+        cout << "error happened in Matrix::block" << endl;
+        exit(-1);
+    }
+    Matrix<Type, Dynamic, Dynamic> result(nrow, ncol);
+    for (int i_row = 0; i_row < nrow; ++ i_row) 
+        for (int i_col = 0; i_col < ncol; ++ i_col) 
+            result(i_row, i_col) = this->operator()(i_row + srow, i_col + scol);
+    return result;
 }
 
 #endif

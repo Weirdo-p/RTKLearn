@@ -7,6 +7,8 @@
 #include <fstream>
 #include <chrono>
 #include "navigation/optimal/rtkekf.h"
+#include "navigation/ambiguity/lambda.h"
+
 using namespace chrono;
 
 CPntrtk::CPntrtk() {
@@ -159,6 +161,8 @@ bool CPntrtk::rtk(sat* sats_epoch) {
     nobs = obsnumber(sats_epoch);
 
     optimizer_->optimize(sats_epoch, *res_);
+    fixambi();
+    
     XYZ2NEU(res_->bpos_ecef_, res_->rpos_ecef_, WGS84, res_->enu);
     ofstream out("./out1.txt", ios::app);
     out << setfill(' ');
@@ -168,7 +172,9 @@ bool CPntrtk::rtk(sat* sats_epoch) {
             " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[2] << 
             " " << setw(9) << fixed << setprecision(6) << res_->enu[0] <<
             " " << setw(9) << fixed << setprecision(6) << res_->enu[1] <<
-            " " << setw(9) << fixed << setprecision(6) << res_->enu[2] << " ";
+            " " << setw(9) << fixed << setprecision(6) << res_->enu[2] << 
+            " " << setw(2) << fixed << res_->ambi_flag_ << 
+            " " << setw(5) << fixed << setprecision(3) << res_->ratio_ ;
     out << setw(3) << fixed << nobs << endl;
     out.close();
 }

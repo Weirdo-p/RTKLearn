@@ -164,6 +164,11 @@ public: // set function
     ***************************************/
     void setopt(prcopt* opt);
 
+public: // get function
+    virtual MatrixXd GetState() override;
+    virtual MatrixXd GetVar() override;
+
+
 private:
     MatrixXd obssats(sat* sats_epoch, int nobs, int* refsats);
     void findrefpos(sat* sats_epoch, int* refsats);

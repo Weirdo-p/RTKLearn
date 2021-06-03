@@ -21,4 +21,7 @@ add_library(optimal SHARED
         optimal/kalman.cpp
         optimal/rtkekf.cpp
         optimal/optimal.cpp)
-        
+
+add_library(ambiguity SHARED
+        ambiguity/lambda.cpp )       
+

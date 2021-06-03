@@ -12,6 +12,9 @@
 #include "navigation/pnt/pntrtk.h"
 #include "navigation/optimal/rtkekf.h"
 #include "navigation/optimal/optimal.h"
+#include "navigation/ambiguity/lambda.h"
+
+
 using namespace std;
 
 int main(int argv, char** argc) {

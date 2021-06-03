@@ -144,10 +144,9 @@ public: // static function
     ****************************************************/
     static double GetFreq(int sys, int freqflag);
 
-
     static double getSatUserPos(sat_s sats, double* sitepos);
 
-
+    void fixambi();
 public: // set function
     void setopt(prcopt opt);
 

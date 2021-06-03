@@ -201,7 +201,7 @@ int COptimal::chooseref(sat sats, int* refsat) {
             refsat[i] = chooseref(sats, SYS_ARRAY[i]);
     }
 #if 0
-    refsat[0] = 5; refsat[1] = 38;// for test
+    refsat[0] = 2; refsat[1] = 1;// for test
     if (count == 500)
         refsat[1] = 22;
 #endif

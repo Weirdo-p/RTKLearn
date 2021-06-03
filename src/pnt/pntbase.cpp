@@ -4,6 +4,7 @@
 #include "navigation/ephemeris/ephbds.h"
 #include "navigation/coors.h"
 #include "navigation/atmosphere.h"
+#include "navigation/ambiguity/lambda.h"
 #include <stdio.h>
 #include <string.h>
 #include <omp.h>
@@ -335,3 +336,32 @@ double CPntbase::weightbyelev(double elev, double sigma0, double alpha) {
     return (sigma02 * (1.0 * alpha * cosE * cosE));
 }
 
+void CPntbase::fixambi() {
+    const int solu_num = 2;
+    res_->ambi_flag_ = FLOAT_SOLU;
+    if (opt_->soltype_ == SOLTYPE_FLOAT) return;
+    auto state = optimizer_->GetState();
+    auto var = optimizer_->GetVar();
+    int n_ambi = state.row() - 3;
+    auto float_solu = state.block<3, 0>(n_ambi, 1);
+    auto float_solu_var = var.block<3, 3>(n_ambi, n_ambi);
+    double* fix_tmp = new double[n_ambi * solu_num];
+    MatrixXd fix(n_ambi, 1);
+    MatrixXd s(1, solu_num);
+    lambda(n_ambi, solu_num, float_solu._2array(), float_solu_var._2array(), fix_tmp, s._2array());
+    for (int i = 0; i < n_ambi; ++ i) fix(i, 0) = fix_tmp[i];
+    res_->ratio_ = s(0, 1) / s(0, 0);
+    if (res_->ratio_ < RATIO_THRES)
+        return;
+
+    res_->ambi_flag_ = FIX_SOLU;
+    int is_inverse = 0;
+    // update result
+    auto Qba = var.block<0, 3> (3, n_ambi);
+    auto Qab = var.block<3, 0>(n_ambi, 3);
+    auto Qbb = var.block<0, 0> (3, 3);
+    auto state_float = state.block<0, 0>(3, 1);
+    MatrixXd state_fix = state_float - Qba * float_solu_var.inverse(is_inverse) * (float_solu - fix);
+    for (int i = 0; i < 3; ++ i) res_->rpos_ecef_[i] = state_fix(i, 0);
+    delete[] fix_tmp; fix_tmp = nullptr;
+}
