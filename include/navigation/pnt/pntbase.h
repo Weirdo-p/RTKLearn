@@ -48,6 +48,11 @@ public:
     *********************************************/
     void satazel(double* site, sat &sat);
 
+    /**************************
+     * evalutate solutions
+    **************************/
+    virtual void evaluate() { }
+
 protected:
     void bindRinex(char* path);
     void bindEph(int sys);
@@ -146,7 +151,12 @@ public: // static function
 
     static double getSatUserPos(sat_s sats, double* sitepos);
 
+    /************************
+     * try to fix ambiguity
+    ************************/
     void fixambi();
+
+    virtual void outsol(Sattime time, int nobs) { }
 public: // set function
     void setopt(prcopt opt);
 

@@ -7,6 +7,7 @@ class COptimal {
 public:
     COptimal();
     COptimal(prcopt* opt);
+    virtual ~COptimal();
 public: // set function
     void setopt(prcopt opt);
     /***************************************
@@ -17,7 +18,7 @@ public: // set function
     virtual bool optimize(sat* sats_epoch, res_t &res) { }
     virtual MatrixXd GetState() { }
     virtual MatrixXd GetVar() { }
-    
+    virtual double GetInternalSigma() { }
 
 protected:
     void getDesignDim(sat sats, int nobs, int &row, int &col);

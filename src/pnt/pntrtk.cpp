@@ -63,6 +63,30 @@ int CPntrtk::process() {
     }
 }
 
+void CPntrtk::outsol(Sattime time, int nobs) {
+    Commontime com;
+    unsigned short doy = 0;
+    GPST2Common(time, com, 0); Common2Doy(com, doy);
+    string file_name = "./results/result_" + to_string(doy) + ".txt";
+    ofstream out(file_name, ios::app);
+    out << setfill(' ');
+    out << setw(4) << time.Week_ << " " << setw(18) << fixed << setprecision(6) << time.Sow_;
+    out << " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[0] <<
+            " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[1] <<
+            " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[2] << 
+            " " << setw(9) << fixed << setprecision(6) << res_->enu[0] <<
+            " " << setw(9) << fixed << setprecision(6) << res_->enu[1] <<
+            " " << setw(9) << fixed << setprecision(6) << res_->enu[2] << 
+            " " << setw(9) << fixed << setprecision(6) << res_->sigma_neu_[0] <<
+            " " << setw(9) << fixed << setprecision(6) << res_->sigma_neu_[1] <<
+            " " << setw(9) << fixed << setprecision(6) << res_->sigma_neu_[2] <<
+            " " << setw(2) << fixed << res_->ambi_flag_ << 
+            " " << setw(5) << fixed << setprecision(3) << res_->ratio_ << 
+            " " << setw(5) << fixed << setprecision(3) << res_->rdop_;
+    out << setw(3) << fixed << nobs << endl;
+    out.close();
+}
+
 int CPntrtk::inputobs(sat* sats) {
     // record observations' postion
     static int base_pos = 0, rover_pos = 0;
@@ -161,22 +185,10 @@ bool CPntrtk::rtk(sat* sats_epoch) {
     nobs = obsnumber(sats_epoch);
 
     optimizer_->optimize(sats_epoch, *res_);
+    evaluate();
     fixambi();
-    
     XYZ2NEU(res_->bpos_ecef_, res_->rpos_ecef_, WGS84, res_->enu);
-    ofstream out("./out1.txt", ios::app);
-    out << setfill(' ');
-    out << setw(4) << sats_epoch->sat_->obs_->time.Week_ << " " << setw(18) << fixed << setprecision(6) << sats_epoch->sat_->obs_->time.Sow_;
-    out << " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[0] <<
-            " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[1] <<
-            " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[2] << 
-            " " << setw(9) << fixed << setprecision(6) << res_->enu[0] <<
-            " " << setw(9) << fixed << setprecision(6) << res_->enu[1] <<
-            " " << setw(9) << fixed << setprecision(6) << res_->enu[2] << 
-            " " << setw(2) << fixed << res_->ambi_flag_ << 
-            " " << setw(5) << fixed << setprecision(3) << res_->ratio_ ;
-    out << setw(3) << fixed << nobs << endl;
-    out.close();
+    outsol(sats_epoch->sat_->obs_->time, nobs);
 }
 
 int CPntrtk::obsnumber(sat* sats) {
@@ -222,4 +234,29 @@ int CPntrtk::excludesats(sat &sat) {
         }
 
     }
+}
+
+void CPntrtk::evaluate() {
+    MatrixXd var_state = optimizer_->GetVar();
+    MatrixXd Q = var_state.block<0, 0>(3, 3);
+    double sigma = optimizer_->GetInternalSigma();
+
+    double station_blh[3] = {0};
+    XYZ2BLH(res_->bpos_ecef_, WGS84, station_blh);
+    double B = station_blh[0], L = station_blh[1];
+    MatrixXd rotation(3, 3);
+    rotation(0, 0) = -sin(B) * cos(L); rotation(0, 1) = -sin(B) * sin(L); rotation(0, 2) = cos(B);
+    rotation(1, 0) = -sin(L); rotation(1, 1) = cos(L); rotation(1, 2) = 0;
+    rotation(2, 0) = cos(B) * cos(L); rotation(2, 1) = cos(B) * sin(L); rotation(2, 2) = sin(B);
+
+    // project to neu coordinate
+    MatrixXd Q_neu = rotation * Q * rotation.transpose();
+    Q_neu = Q_neu * sigma;
+    for (int i = 0; i < 3; ++ i)
+        res_->sigma_neu_[i] = sqrt(Q_neu(i, i));
+    
+    // RDOP
+    double rdop = 0;
+    for (int i = 0; i < 3; ++ i) rdop += Q(i, i);
+    res_->rdop_ = sqrt(rdop);
 }

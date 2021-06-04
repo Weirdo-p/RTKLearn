@@ -342,6 +342,8 @@ void CPntbase::fixambi() {
     if (opt_->soltype_ == SOLTYPE_FLOAT) return;
     auto state = optimizer_->GetState();
     auto var = optimizer_->GetVar();
+    // double sigma = optimizer_->GetInternalSigma(); // var = var * sigma;
+
     int n_ambi = state.row() - 3;
     auto float_solu = state.block<3, 0>(n_ambi, 1);
     auto float_solu_var = var.block<3, 3>(n_ambi, n_ambi);

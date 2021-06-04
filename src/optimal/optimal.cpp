@@ -238,3 +238,9 @@ COptimal::COptimal(prcopt* opt) {
     if (!opt_) 
         opt_ = opt;
 }
+
+COptimal::~COptimal() {
+    if (opt_)
+        delete opt_;
+    opt_ = nullptr;
+}

@@ -74,8 +74,8 @@ int CPntspp::spp_site(int i_site, sat* sats) {
         GetDesign(*sats, sitepos_ecef, B);
         // cout << B << endl << endl;
         // cout << pos << endl << endl;
-        CLeastsq optimizer;
-        if(!optimizer.optimize(B, P, w)) {
+        CLeastsq optimizer(opt_);
+        if(!optimizer.optimize(B, P, w, nobs)) {
             memset(sitepos_ecef, 0, sizeof(double) * 3);
             cout << w << endl;
             cout << B << endl;

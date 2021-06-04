@@ -167,7 +167,7 @@ public: // set function
 public: // get function
     virtual MatrixXd GetState() override;
     virtual MatrixXd GetVar() override;
-
+    virtual double GetInternalSigma() override;
 
 private:
     MatrixXd obssats(sat* sats_epoch, int nobs, int* refsats);
@@ -175,7 +175,7 @@ private:
     double dist(double* a, double* b);
     void statusFix(sat* sats_epoch, int nobs, int* refsats, int* obssys);
     void refchange(int* refsats, int* obssys);
-    void initstate_s(sat* sats, int prn, int sysflag, int* ddobs);
+    void initstate_s(sat* sats, int prn, int sysflag, double* ddobs);
     int obsnumber(sat* sats);
     void getDesignDim(sat sats, int nobs, int &row, int &col);
     void getddobs(sat* sats, double* sitepos, int* refsats, int* sysobs, res_t res, MatrixXd &w);

@@ -291,7 +291,9 @@ public:
 
 struct res_t {  /* result for an epoch */
     int    ratio_;                  /* LAMBDA ratio value */
-    unsigned int ambi_flag_;             /* 1: fix solution, 2: float solution, 3: spp */
+    unsigned int ambi_flag_;        /* 1: fix solution, 2: float solution, 3: spp */
+    double rdop_;                   /* rdop */
+    double sigma_neu_[3];           /* internal reliability */
     double bpos_ecef_[3];           /* base position */
     double rpos_ecef_[3];           /* rover position */
     double bpos_blh_[3];            /* base position */

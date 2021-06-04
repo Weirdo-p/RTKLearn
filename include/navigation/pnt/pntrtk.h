@@ -16,7 +16,9 @@ public:
     int process() override;
     bool rtk(sat* sats_epoch);
     static int obsnumber(sat* sats);
-
+    virtual void outsol(Sattime time, int nobs) override;
+    virtual void evaluate() override;
+    
 protected:
     /************************************
      * select observations and ephemeris

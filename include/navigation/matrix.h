@@ -115,6 +115,7 @@ public:
 
     Matrix<Type, _0, _1> operator*(const int a);
 
+    Matrix<Type, _0, _1> operator*(const double a);
     /* print the matrix */
     template<class Type1, int _0_, int _1_>
     friend ostream & operator<<(ostream &out, Matrix<Type1, _0_, _1_> &matrix);
@@ -723,6 +724,17 @@ void Matrix<Type, _0, _1>::block(int s_row, int s_col, Matrix<Type1, _0_, _1_> m
 
 template <class Type, int _0, int _1>
 Matrix<Type, _0, _1> Matrix<Type, _0, _1>::operator*(const int a) {
+    Matrix<Type, _0, _1> temp = *this;
+    for (int i = 0; i < rows; ++i) {
+        #pragma omp parallel for
+        for(int j = 0; j < cols; ++j)
+            temp(i, j) = this->operator()(i, j) * a;
+    }
+    return temp;
+}
+
+template <class Type, int _0, int _1>
+Matrix<Type, _0, _1> Matrix<Type, _0, _1>::operator*(const double a) {
     Matrix<Type, _0, _1> temp = *this;
     for (int i = 0; i < rows; ++i) {
         #pragma omp parallel for

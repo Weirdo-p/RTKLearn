@@ -2,11 +2,17 @@
 #include "navigation/pnt/pntbase.h"
 #include "navigation/pnt/pntrtk.h"
 
-bool CLeastsq::optimize(MatrixXd B, MatrixXd P, MatrixXd w) {
+bool CLeastsq::optimize(MatrixXd B, MatrixXd P, MatrixXd w, int nobs) {
     int istrue = 0;
     MatrixXd inv = B.transpose() * P * B;
     inv = inv.inverse(istrue);
+    Q_ = inv;
     x_ = inv * B.transpose() * P * w;
+
+    MatrixXd v = B * x_ ;
+    v = v - w;
+    auto sigma = v.transpose() * P * v;
+    sigma_ = sigma(0, 0) / (nobs - opt_->nsys_ - 3);
     return bool(istrue);
 }
 
@@ -19,7 +25,10 @@ CLeastsq::CLeastsq() {
 }
 
 CLeastsq::CLeastsq(prcopt* opt) {
-    if (!opt_) opt_ = opt;
+    if (!opt_) {
+        opt_ = new prcopt;
+        memcpy(opt_, opt, sizeof(prcopt));
+    }
 }
 
 void CLeastsq::getl(sat* sats, double* basepos, int* refsats, MatrixXd pos, MatrixXd &w) {
@@ -82,19 +91,35 @@ bool CLeastsq::optimize(sat* sats_epoch, res_t &res) {
         for (int i = 0; i < 3; ++i) rover_pos[i] = pos(i, 0);
         B.Zero(); P.Zero(); w.Zero();
         getDesign(sats_epoch, nobs, rover_pos, refsats, B);
-        getl(sats_epoch, rover_pos, refsats, pos, w);
+        getl(sats_epoch, opt_->base_, refsats, pos, w);
         getweight(sats_epoch, refsats, nobs, P);
         int flag = 0;
-        if(!optimize(B, P, w)) {
+        if(!optimize(B, P, w, nobs)) {
             continue;
         }
-        MatrixXd x = Getx();
+
         MatrixXd x_pos(3, 1);
-        for (int i = 0; i < 3; ++i) {
-            pos(i, 0) += x(i, 0); x_pos(i, 0) = x(i, 0);
+        for (int i = 0; i < x_.row(); ++i) {
+            if (i < 3) {
+                pos(i, 0) += x_(i, 0); x_pos(i, 0) = x_(i, 0);
+            } else 
+                pos(i, 0) = x_(i, 0);
         }
+        x_ = pos;
         if (x_pos.norm() < 1E-6) break;
         iter ++;
     }
     for (int i = 0; i < 3; ++ i) res.rpos_ecef_[i] = pos(i, 0);
+}
+
+MatrixXd CLeastsq::GetVar() {
+    return Q_;
+}
+
+double CLeastsq::GetInternalSigma() {
+    return sigma_;
+}
+
+MatrixXd CLeastsq::GetState() {
+    return x_;
 }
