@@ -16,50 +16,50 @@ ostream & operator<<(ostream &out, const Mjdtime MJD) {
 }
 
 ostream & operator<<(ostream &out, const Sattime GPST) {
-    out << GPST.Week_ << "   " << setprecision(15) << GPST.Sow_ << endl;
+    out << GPST._Week << "   " << setprecision(15) << GPST._Sow << endl;
     return out;
 }
 
 Sattime::Sattime(int week, double sow) {
-    Week_ = week; Sow_ = sow;
+    _Week = week; _Sow = sow;
 }
 
 
 Sattime::Sattime() {
-    Week_ = 0; Sow_ = 0;
+    _Week = 0; _Sow = 0;
 }
 
 Sattime Sattime::operator-(const Sattime &a) const {      
     Sattime r;
-    r.Week_ = this->Week_ - a.Week_; r.Sow_ = this->Sow_ - a.Sow_;
-    if(r.Sow_ < 0) {
-        r.Sow_ += 604800;
-        r.Week_ -= 1;
+    r._Week = this->_Week - a._Week; r._Sow = this->_Sow - a._Sow;
+    if(r._Sow < 0) {
+        r._Sow += 604800;
+        r._Week -= 1;
     }
     return r;
 }
 
 double Sattime::_2sec() {
-    return Week_ * 604800.0 + Sow_;
+    return _Week * 604800.0 + _Sow;
 }
 
 Sattime Sattime::operator-(const double &a) const {
     Sattime r;
-    r.Week_ = this->Week_; r.Sow_ = this->Sow_ - a;
-    if(r.Sow_ < 0) {
-        r.Sow_ += 604800.0;
-        r.Week_ -= 1;
+    r._Week = this->_Week; r._Sow = this->_Sow - a;
+    if(r._Sow < 0) {
+        r._Sow += 604800.0;
+        r._Week -= 1;
     }
     return r;
 }
 
 Sattime Sattime::operator+(const double &a) const {
     Sattime r;
-    r.Week_ = this->Week_;
-    r.Sow_ = this->Sow_ + a;
-    if(r.Sow_ >= 604800) {
-        r.Sow_ -= 604800;
-        r.Week_ += 1;
+    r._Week = this->_Week;
+    r._Sow = this->_Sow + a;
+    if(r._Sow >= 604800) {
+        r._Sow -= 604800;
+        r._Week += 1;
     }
     return r;
 }
@@ -74,7 +74,7 @@ bool isLegal(const Commontime CT) {
 }
 
 bool isLegal(const Sattime GPST) {
-    if(GPST.Sow_ < 0 || GPST.Week_ < 0)
+    if(GPST._Sow < 0 || GPST._Week < 0)
         return false;
     else
         return true;
@@ -150,9 +150,9 @@ bool Mjd2Gps(const Mjdtime MJD, Sattime &GPST) {
     if(!flag)
         return flag;
 
-    GPST.Week_ = int((MJD.Day_ + MJD.FracDay_ - 44244) / 7.0);
-    GPST.Sow_ = (MJD.Day_ - GPST.Week_ * 7.0 - 44244.0) * 86400.0;
-    GPST.Sow_ +=   MJD.FracDay_ * 86400.0;
+    GPST._Week = int((MJD.Day_ + MJD.FracDay_ - 44244) / 7.0);
+    GPST._Sow = (MJD.Day_ - GPST._Week * 7.0 - 44244.0) * 86400.0;
+    GPST._Sow +=   MJD.FracDay_ * 86400.0;
     // 合法性判断
     flag = isLegal(GPST);
 
@@ -164,7 +164,7 @@ bool Gps2Mjd(const Sattime GPST, Mjdtime &MJD_) {
     if (!flag)
         return flag;
 
-    double MJD = 44244.0 + GPST.Week_ * 7.0 + GPST.Sow_ / 86400.0;
+    double MJD = 44244.0 + GPST._Week * 7.0 + GPST._Sow / 86400.0;
     MJD_.Day_ = int(MJD);
     MJD_.FracDay_ = MJD - MJD_.Day_;
 
@@ -205,21 +205,21 @@ bool Common2Doy(const Commontime CT, unsigned short int &DOY) {
 }
 
 bool GPST2BDST(const Sattime gpst, Sattime &bdst) {
-    bdst.Week_ = gpst.Week_ - 1356;
-    bdst.Sow_ = gpst.Sow_ - BDT2GPST;
-    if(bdst.Sow_ < 0) {
-        bdst.Sow_ += 604800;
-        bdst.Week_ -= 1;
+    bdst._Week = gpst._Week - 1356;
+    bdst._Sow = gpst._Sow - BDT2GPST;
+    if(bdst._Sow < 0) {
+        bdst._Sow += 604800;
+        bdst._Week -= 1;
     }
     return true;
 }
 
 bool BDST2GPST(const Sattime bdst, Sattime &gpst) {
-    gpst.Week_ = bdst.Week_ + 1356;
-    gpst.Sow_ = bdst.Sow_ + 14;
-    if(gpst.Sow_ >= 604800 ) {
-        gpst.Sow_ -= 604800;
-        gpst.Week_ += 1;
+    gpst._Week = bdst._Week + 1356;
+    gpst._Sow = bdst._Sow + 14;
+    if(gpst._Sow >= 604800 ) {
+        gpst._Sow -= 604800;
+        gpst._Week += 1;
     }
     return true;
 }
@@ -242,7 +242,7 @@ Commontime::Commontime() {
 
 double Sattimediff(const Sattime t1, const Sattime t2) {
     Sattime diff = t1 - t2;
-    return diff.Week_ * 604800.0 + diff.Sow_;
+    return diff._Week * 604800.0 + diff._Sow;
 }
 
 bool Sattime::operator!=(const Sattime &a) const {

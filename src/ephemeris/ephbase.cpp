@@ -1,17 +1,17 @@
-#include "ephemeris/ephbase.h"
+#include "navigation/ephemeris/ephbase.h"
 
 CEphBase::CEphBase() {
 
 }
 
 bool CEphBase::satclk(Sattime time, sat_s &sat) {
-    if (!sat.eph_) return false;
-    double t = time.Sow_ - sat.eph_->toc_.Sow_, ts = t;
+    if (!sat._eph) return false;
+    double t = time._Sow - sat._eph->_toc._Sow, ts = t;
     // relfix(time, sat);
     for (int i = 0; i < 5; ++i) 
-        t = ts - (sat.eph_->clkbias_ + t * sat.eph_->clkdrift_ + t * t * sat.eph_->clkdrate_);
-    sat.clk[0] = sat.eph_->clkbias_ + t * sat.eph_->clkdrift_ + t * t * sat.eph_->clkdrate_;
-    sat.clk[1] = sat.eph_->clkdrift_ + 2 * sat.eph_->clkdrate_ * t;
+        t = ts - (sat._eph->_clkbias + t * sat._eph->_clkdrift + t * t * sat._eph->_clkdrate);
+    sat._clk[0] = sat._eph->_clkbias + t * sat._eph->_clkdrift + t * t * sat._eph->_clkdrate;
+    sat._clk[1] = sat._eph->_clkdrift + 2 * sat._eph->_clkdrate * t;
     return true;
 }
 
@@ -23,7 +23,7 @@ bool CEphBase::satvel(Sattime time, sat_s &sat) {
     Sattime tmp = time + dt;
     satpos(tmp, sat_now);
     for (int i = 0; i < 3; ++i) 
-        sat.vel_[i] = (sat_now.pos_[i] - sat_prev.pos_[i]) / dt;
+        sat._vel[i] = (sat_now._pos[i] - sat_prev._pos[i]) / dt;
 }
 
 Ellipsoid CEphBase::GetElli() {

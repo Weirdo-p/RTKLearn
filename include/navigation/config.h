@@ -53,7 +53,7 @@ private: // sites configurations
     void ParseSiteLine(string line);
 
 private:
-    prcopt opt_;
+    prcopt _opt;
 };
 
 #endif // _CONFIG_H_

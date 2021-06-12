@@ -40,16 +40,16 @@ int CDecodeRnx304::decode(char* infiles, prcopt opt) {
         }
         if (line[20] == 'O') {
             memset(&rnxopt_, 0, sizeof(rnxopt));
-            memset(rnxopt_.obstypepos_, -1, sizeof(unsigned short) * MAXSYS * MAXFREQ * 4);
+            memset(rnxopt_._obstypepos, -1, sizeof(unsigned short) * MAXSYS * MAXFREQ * 4);
             int obsnum = scanobsfile(in);
             in.clear(); in.seekg(0);
             readobsh(in, opt);
             readobsb(in, obsnum, opt);
         } else if (line[20] == 'N') {
             int satnums = scannav(in, opt);
-            eph_->msg_ = new nav_t [satnums];
-            eph_->num = satnums;
-            memset(eph_->msg_, 0, sizeof(nav));
+            _eph->_msg = new nav_t [satnums];
+            _eph->_num = satnums;
+            memset(_eph->_msg, 0, sizeof(nav));
             in.clear(); in.seekg(0);
             readephh(in, opt);
             readephb(in, opt);
@@ -64,7 +64,7 @@ int CDecodeRnx304::scanobsfile(ifstream &in) {
     const char* p;
     while (!in.eof()) {
         getline(in ,line);
-        if (p = strchr(sys_, line[0]))
+        if (p = strchr(_sys, line[0]))
             count += 1;
     }
     return count;
@@ -85,11 +85,11 @@ int CDecodeRnx304::readobsh(ifstream &in, prcopt opt) {
 
         if (label == "SYS/#/OBSTYPES") {
             for (int i = 0; i < MAXSYS; ++i) {
-                if (!(p = strchr(sys_, line[0])))
+                if (!(p = strchr(_sys, line[0])))
                     continue;
-                int sys = int(p - sys_);
+                int sys = int(p - _sys);
                 int sysflag = code2sys(line[0]);
-                if (((opt.navsys_ & SYS_ARRAY[i]) == SYS_ARRAY[i]) && (sysflag == SYS_ARRAY[i]))
+                if (((opt._navsys & SYS_ARRAY[i]) == SYS_ARRAY[i]) && (sysflag == SYS_ARRAY[i]))
                     readfreqtype(in, line, sys, opt);
             }
         }
@@ -118,19 +118,19 @@ int CDecodeRnx304::readfreqtype(ifstream &in, string line, int sys, prcopt opt) 
             continue;
         freqpos = int(p - freqcode_[sys]);
         int freqtypecode = code2freqnum(freqpos);
-        if ((freqtypecode & opt.freqtype_) != freqtypecode)
+        if ((freqtypecode & opt._freqtype) != freqtypecode)
             continue;
 
         // unknown observation type
-        if (!(p = strchr(obstype_, freqtype[0])))
+        if (!(p = strchr(_obstype, freqtype[0])))
             continue;
-        obstypepos = int(p - obstype_);
+        obstypepos = int(p - _obstype);
         // unknown track mode
-        if (!(p = strchr(mode_, freqtype[2])))
+        if (!(p = strchr(_mode, freqtype[2])))
             continue;
-        if (rnxopt_.obstype_[sys][freqpos * 4 + obstypepos].size() == 0) {
-            rnxopt_.obstype_[sys][freqpos * 4 + obstypepos] = freqtype;
-            rnxopt_.obstypepos_[sys][freqpos * 4 + obstypepos] = position;
+        if (rnxopt_._obstype[sys][freqpos * 4 + obstypepos].size() == 0) {
+            rnxopt_._obstype[sys][freqpos * 4 + obstypepos] = freqtype;
+            rnxopt_._obstypepos[sys][freqpos * 4 + obstypepos] = position;
         }
         if (maxfreqtps < freqnums && position < freqnums && i == maxfreqtps - 1)
             getline(in, line);
@@ -141,10 +141,10 @@ int CDecodeRnx304::readfreqtype(ifstream &in, string line, int sys, prcopt opt) 
 int CDecodeRnx304::readobsb(ifstream &in, int obsnum, prcopt opt) {
     static unsigned short sitenum = 0;
     int epoch = 0;
-    if (obss_[sitenum].obs_) return -1;
-    obss_[sitenum].obs_ = new obs_t[obsnum];
-    obss_[sitenum].obsnum_ = obsnum;
-    obss_[sitenum].rcv_ = sitenum;
+    if (obss_[sitenum]._obs) return -1;
+    obss_[sitenum]._obs = new obs_t[obsnum];
+    obss_[sitenum]._obsnum = obsnum;
+    obss_[sitenum]._rcv = sitenum;
     while (!in.eof()) {
         string line;
         getline(in, line);
@@ -177,55 +177,55 @@ int CDecodeRnx304::decodeEpoch(int sitenum, int &epoch, string line) {
         return 0;
     }
     Common2Gps(Commontime(year, month, day, hour, min, sec),
-               obss_[sitenum].obs_[epoch].time, 0);
+               obss_[sitenum]._obs[epoch]._time, 0);
     return satnum;
 }
 
 bool CDecodeRnx304::decodeobsr(ifstream &in, int sitenum, int satnum, prcopt opt, int &epoch) {
     string line;
     const char* p;
-    Sattime time = obss_[sitenum].obs_[epoch].time;
+    Sattime time = obss_[sitenum]._obs[epoch]._time;
     for (int i = 0; i < satnum; ++i) {
         getline(in, line);
-        if(!(p = strchr(sys_, line[0])))
+        if(!(p = strchr(_sys, line[0])))
             continue;
-        int syspos = int(p - sys_);
-        if ((SYS_ARRAY[syspos] & opt.navsys_) != SYS_ARRAY[syspos])
+        int syspos = int(p - _sys);
+        if ((SYS_ARRAY[syspos] & opt._navsys) != SYS_ARRAY[syspos])
             continue;
         for (int pos = 0; pos < MAXFREQ * 4; ++ pos) {
-            int obspos = rnxopt_.obstypepos_[syspos][pos];
+            int obspos = rnxopt_._obstypepos[syspos][pos];
             if (obspos == -1)
                 continue;
-            if (!(p = strchr(freqcode_[syspos], rnxopt_.obstype_[syspos][pos][1])))
+            if (!(p = strchr(freqcode_[syspos], rnxopt_._obstype[syspos][pos][1])))
                 continue;
             int freqpos = int(p - freqcode_[syspos]);
-            if (!(p = strchr(obstype_, rnxopt_.obstype_[syspos][pos][0])))
+            if (!(p = strchr(_obstype, rnxopt_._obstype[syspos][pos][0])))
                 continue;
-            int modepos = int(p - obstype_);
+            int modepos = int(p - _obstype);
             string s_obs, s_lli;
-            obss_[sitenum].obs_[epoch].sys = code2sys(line[0]);
-            obss_[sitenum].obs_[epoch].sat = str2num<int>(line.substr(1, 2));
+            obss_[sitenum]._obs[epoch]._sys = code2sys(line[0]);
+            obss_[sitenum]._obs[epoch]._sat = str2num<int>(line.substr(1, 2));
             try {
                 s_obs = line.substr(3 + obspos * 16, 14);
                 s_lli = line.substr(17 + obspos * 16, 1);
             } catch (...) {
-                memset(&(obss_[sitenum].obs_[epoch]), 0, sizeof(obs));
+                memset(&(obss_[sitenum]._obs[epoch]), 0, sizeof(obs));
                 continue;
             }
-            obss_[sitenum].obs_[epoch].lli[freqpos * 4 + modepos] = str2num<int>(s_lli);
-            obss_[sitenum].obs_[epoch].time = time;
+            obss_[sitenum]._obs[epoch]._lli[freqpos * 4 + modepos] = str2num<int>(s_lli);
+            obss_[sitenum]._obs[epoch]._time = time;
             switch (modepos) {
             case 0: // pseudorange
-                obss_[sitenum].obs_[epoch].P[freqpos] = str2num<double>(s_obs);
+                obss_[sitenum]._obs[epoch]._P[freqpos] = str2num<double>(s_obs);
                 break;
             case 1: // carrier phase
-                obss_[sitenum].obs_[epoch].L[freqpos] = str2num<double>(s_obs);
+                obss_[sitenum]._obs[epoch]._L[freqpos] = str2num<double>(s_obs);
                 break;
             case 2: // doppler
-                obss_[sitenum].obs_[epoch].D[freqpos] = str2num<double>(s_obs);
+                obss_[sitenum]._obs[epoch]._D[freqpos] = str2num<double>(s_obs);
                 break;
             case 3: // signal strength
-                obss_[sitenum].obs_[epoch].S[freqpos] = str2num<double>(s_obs);
+                obss_[sitenum]._obs[epoch]._S[freqpos] = str2num<double>(s_obs);
                 break;
             default:
                 break;
@@ -272,7 +272,7 @@ int CDecodeRnx304::readephb(ifstream &in, prcopt opt) {
     while(!in.eof()) {
         getline(in, line);
         int sysflag = code2sys(line[0]);
-        if ((sysflag & opt.navsys_) != sysflag) continue;
+        if ((sysflag & opt._navsys) != sysflag) continue;
         if (sysflag == SYS_GPS)
             readgpseph(in, line, opt, ephnum);
         else if (sysflag == SYS_BDS) 
@@ -284,19 +284,19 @@ int CDecodeRnx304::readephb(ifstream &in, prcopt opt) {
 int CDecodeRnx304::readgpseph(ifstream &in, string& line, prcopt opt, int ephnum) {
     int year, month, day, hour, min;
     double sec;
-    eph_->msg_[ephnum].sys_ = SYS_GPS;
+    _eph->_msg[ephnum]._sys = SYS_GPS;
     string value = line.substr(1, 2);
-    eph_->msg_[ephnum].prn_ = str2num<double>(value);
+    _eph->_msg[ephnum]._prn = str2num<double>(value);
     value = line.substr(4, 4); year = str2num<int>(value);
     value = line.substr(9, 2); month = str2num<int>(value);
     value = line.substr(12, 2); day = str2num<int>(value);
     value = line.substr(15, 2); hour = str2num<int>(value);
     value = line.substr(18, 2); min = str2num<int>(value);
     value = line.substr(21, 2); sec = str2num<double>(value);
-    Common2Gps(Commontime(year, month, day, hour, min, sec), eph_->msg_[ephnum].toc_, 0);
-    value = line.substr(23, 19); eph_->msg_[ephnum].clkbias_ = str2num<double>(value);
-    value = line.substr(42, 19); eph_->msg_[ephnum].clkdrift_ = str2num<double>(value);
-    value = line.substr(61, 19); eph_->msg_[ephnum].clkdrate_ = str2num<double>(value);
+    Common2Gps(Commontime(year, month, day, hour, min, sec), _eph->_msg[ephnum]._toc, 0);
+    value = line.substr(23, 19); _eph->_msg[ephnum]._clkbias = str2num<double>(value);
+    value = line.substr(42, 19); _eph->_msg[ephnum]._clkdrift = str2num<double>(value);
+    value = line.substr(61, 19); _eph->_msg[ephnum]._clkdrate = str2num<double>(value);
     double d_ephvalue[28] = {0};
     for (int i = 0; i < 7; ++i) {
         getline(in, line);
@@ -308,45 +308,45 @@ int CDecodeRnx304::readgpseph(ifstream &in, string& line, prcopt opt, int ephnum
     }
     
     // orbit-1
-    eph_->msg_[ephnum].Iode_ = d_ephvalue[0]; eph_->msg_[ephnum].Crs_ = d_ephvalue[1];
-    eph_->msg_[ephnum].Deltan_ = d_ephvalue[2]; eph_->msg_[ephnum].M0_ = d_ephvalue[3];
+    _eph->_msg[ephnum]._Iode = d_ephvalue[0]; _eph->_msg[ephnum]._Crs = d_ephvalue[1];
+    _eph->_msg[ephnum]._Deltan = d_ephvalue[2]; _eph->_msg[ephnum]._M0 = d_ephvalue[3];
     // orbit-2
-    eph_->msg_[ephnum].Cuc_ = d_ephvalue[4]; eph_->msg_[ephnum].ecc_ = d_ephvalue[5];
-    eph_->msg_[ephnum].Cus_ = d_ephvalue[6]; eph_->msg_[ephnum].sqrtA_ = d_ephvalue[7];
+    _eph->_msg[ephnum]._Cuc = d_ephvalue[4]; _eph->_msg[ephnum]._ecc = d_ephvalue[5];
+    _eph->_msg[ephnum]._Cus = d_ephvalue[6]; _eph->_msg[ephnum]._sqrtA = d_ephvalue[7];
     // orbit-3
-    eph_->msg_[ephnum].toe_ = Sattime(d_ephvalue[18], d_ephvalue[8]);
-    eph_->msg_[ephnum].Cic_ = d_ephvalue[9]; eph_->msg_[ephnum].Omega0_ = d_ephvalue[10];
-    eph_->msg_[ephnum].Cis_ = d_ephvalue[11];
+    _eph->_msg[ephnum]._toe = Sattime(d_ephvalue[18], d_ephvalue[8]);
+    _eph->_msg[ephnum]._Cic = d_ephvalue[9]; _eph->_msg[ephnum]._Omega0 = d_ephvalue[10];
+    _eph->_msg[ephnum]._Cis = d_ephvalue[11];
     // orbit-4
-    eph_->msg_[ephnum].I0_ = d_ephvalue[12]; eph_->msg_[ephnum].Crc_ = d_ephvalue[13];
-    eph_->msg_[ephnum].Omega_ = d_ephvalue[14]; eph_->msg_[ephnum].Omega_dot_ = d_ephvalue[15];
+    _eph->_msg[ephnum]._I0 = d_ephvalue[12]; _eph->_msg[ephnum]._Crc = d_ephvalue[13];
+    _eph->_msg[ephnum]._Omega = d_ephvalue[14]; _eph->_msg[ephnum]._Omega_dot = d_ephvalue[15];
     // orbit-5
-    eph_->msg_[ephnum].Idot_ = d_ephvalue[16];
+    _eph->_msg[ephnum]._Idot = d_ephvalue[16];
     // orbit-6
-    eph_->msg_[ephnum].SV_ = d_ephvalue[20]; eph_->msg_[ephnum].SVHealth_ = d_ephvalue[21];
-    eph_->msg_[ephnum].Tgd_[0] = d_ephvalue[22]; eph_->msg_[ephnum].Iodc_ = d_ephvalue[23];
+    _eph->_msg[ephnum]._SV = d_ephvalue[20]; _eph->_msg[ephnum]._SVHealth = d_ephvalue[21];
+    _eph->_msg[ephnum]._Tgd[0] = d_ephvalue[22]; _eph->_msg[ephnum]._Iodc = d_ephvalue[23];
     // orbit-7
-    eph_->msg_[ephnum].Tof_ = d_ephvalue[25];
+    _eph->_msg[ephnum]._Tof = d_ephvalue[25];
     return 1;
 }
 
 int CDecodeRnx304::readbdseph(ifstream &in, string &line, prcopt opt, int ephnum) {
     int year, month, day, hour, min;
     double sec;
-    eph_->msg_[ephnum].sys_ = SYS_BDS;
+    _eph->_msg[ephnum]._sys = SYS_BDS;
     string value = line.substr(1, 2);
-    eph_->msg_[ephnum].prn_ = str2num<double>(value);
+    _eph->_msg[ephnum]._prn = str2num<double>(value);
     value = line.substr(4, 4); year = str2num<int>(value);
     value = line.substr(9, 2); month = str2num<int>(value);
     value = line.substr(12, 2); day = str2num<int>(value);
     value = line.substr(15, 2); hour = str2num<int>(value);
     value = line.substr(18, 2); min = str2num<int>(value);
     value = line.substr(21, 2); sec = str2num<double>(value);
-    Common2Gps(Commontime(year, month, day, hour, min, sec), eph_->msg_[ephnum].toc_, 0);
-    eph_->msg_[ephnum].toc_ = eph_->msg_[ephnum].toc_ + BDT2GPST;
-    value = line.substr(23, 19); eph_->msg_[ephnum].clkbias_ = str2num<double>(value);
-    value = line.substr(42, 19); eph_->msg_[ephnum].clkdrift_ = str2num<double>(value);
-    value = line.substr(61, 19); eph_->msg_[ephnum].clkdrate_ = str2num<double>(value);
+    Common2Gps(Commontime(year, month, day, hour, min, sec), _eph->_msg[ephnum]._toc, 0);
+    _eph->_msg[ephnum]._toc = _eph->_msg[ephnum]._toc + BDT2GPST;
+    value = line.substr(23, 19); _eph->_msg[ephnum]._clkbias = str2num<double>(value);
+    value = line.substr(42, 19); _eph->_msg[ephnum]._clkdrift = str2num<double>(value);
+    value = line.substr(61, 19); _eph->_msg[ephnum]._clkdrate = str2num<double>(value);
     double d_ephvalue[28] = {0};
     for (int i = 0; i < 7; ++i) {
         getline(in, line);
@@ -357,27 +357,27 @@ int CDecodeRnx304::readbdseph(ifstream &in, string &line, prcopt opt, int ephnum
         }
     }
     // orbit-1
-    eph_->msg_[ephnum].Iode_ = d_ephvalue[0]; eph_->msg_[ephnum].Crs_ = d_ephvalue[1];
-    eph_->msg_[ephnum].Deltan_ = d_ephvalue[2]; eph_->msg_[ephnum].M0_ = d_ephvalue[3];
+    _eph->_msg[ephnum]._Iode = d_ephvalue[0]; _eph->_msg[ephnum]._Crs = d_ephvalue[1];
+    _eph->_msg[ephnum]._Deltan = d_ephvalue[2]; _eph->_msg[ephnum]._M0 = d_ephvalue[3];
     // orbit-2
-    eph_->msg_[ephnum].Cuc_ = d_ephvalue[4]; eph_->msg_[ephnum].ecc_ = d_ephvalue[5];
-    eph_->msg_[ephnum].Cus_ = d_ephvalue[6]; eph_->msg_[ephnum].sqrtA_ = d_ephvalue[7];
+    _eph->_msg[ephnum]._Cuc = d_ephvalue[4]; _eph->_msg[ephnum]._ecc = d_ephvalue[5];
+    _eph->_msg[ephnum]._Cus = d_ephvalue[6]; _eph->_msg[ephnum]._sqrtA = d_ephvalue[7];
     // orbit-3
-    eph_->msg_[ephnum].toe_ = Sattime(d_ephvalue[18], d_ephvalue[8]);
-    eph_->msg_[ephnum].Cic_ = d_ephvalue[9]; eph_->msg_[ephnum].Omega0_ = d_ephvalue[10];
-    eph_->msg_[ephnum].Cis_ = d_ephvalue[11];
-    BDST2GPST(eph_->msg_[ephnum].toe_, eph_->msg_[ephnum].toe_);
-    // eph_->msg_[ephnum].toe_ = eph_->msg_[ephnum].toe_ + BDT2GPST;
+    _eph->_msg[ephnum]._toe = Sattime(d_ephvalue[18], d_ephvalue[8]);
+    _eph->_msg[ephnum]._Cic = d_ephvalue[9]; _eph->_msg[ephnum]._Omega0 = d_ephvalue[10];
+    _eph->_msg[ephnum]._Cis = d_ephvalue[11];
+    BDST2GPST(_eph->_msg[ephnum]._toe, _eph->_msg[ephnum]._toe);
+    // _eph->_msg[ephnum]._toe = _eph->_msg[ephnum]._toe + BDT2GPST;
     // orbit-4
-    eph_->msg_[ephnum].I0_ = d_ephvalue[12]; eph_->msg_[ephnum].Crc_ = d_ephvalue[13];
-    eph_->msg_[ephnum].Omega_ = d_ephvalue[14]; eph_->msg_[ephnum].Omega_dot_ = d_ephvalue[15];
+    _eph->_msg[ephnum]._I0 = d_ephvalue[12]; _eph->_msg[ephnum]._Crc = d_ephvalue[13];
+    _eph->_msg[ephnum]._Omega = d_ephvalue[14]; _eph->_msg[ephnum]._Omega_dot = d_ephvalue[15];
     // orbit-5
-    eph_->msg_[ephnum].Idot_ = d_ephvalue[16];
+    _eph->_msg[ephnum]._Idot = d_ephvalue[16];
     // orbit-6
-    eph_->msg_[ephnum].SV_ = d_ephvalue[20]; eph_->msg_[ephnum].SVHealth_ = d_ephvalue[21];
-    eph_->msg_[ephnum].Tgd_[0] = d_ephvalue[22]; eph_->msg_[ephnum].Tgd_[1] = d_ephvalue[23];
+    _eph->_msg[ephnum]._SV = d_ephvalue[20]; _eph->_msg[ephnum]._SVHealth = d_ephvalue[21];
+    _eph->_msg[ephnum]._Tgd[0] = d_ephvalue[22]; _eph->_msg[ephnum]._Tgd[1] = d_ephvalue[23];
     // orbit-7
-    eph_->msg_[ephnum].Tof_ = d_ephvalue[25]; eph_->msg_[ephnum].Iodc_ = d_ephvalue[26];
+    _eph->_msg[ephnum]._Tof = d_ephvalue[25]; _eph->_msg[ephnum]._Iodc = d_ephvalue[26];
     return 1;
 }
 
@@ -387,9 +387,9 @@ int CDecodeRnx304::scannav(ifstream &in, prcopt opt) {
     while(!in.eof()) {
         getline(in, line);
         int sysflag = code2sys(line[0]);
-        if ((sysflag & opt.navsys_) == sysflag)
+        if ((sysflag & opt._navsys) == sysflag)
             count ++;
     }
-    eph_->num;
+    _eph->_num;
     return count;
 }

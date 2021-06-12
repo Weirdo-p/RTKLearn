@@ -4,27 +4,27 @@
 
 CRnxBase::CRnxBase() {
     this->obss_ = nullptr;
-    this->eph_ = new nav;
-    this->eph_->msg_ = nullptr;
+    this->_eph = new nav;
+    this->_eph->_msg = nullptr;
     this->nsites_ = 0;
 }
 
 CRnxBase::~CRnxBase() {
     if (nsites_ != 0) {
         for (int i = 0; i < nsites_; ++i) 
-            if (obss_[i].obs_) 
-                delete[] obss_[i].obs_;
-        // obss_->obs_ = nullptr;
+            if (obss_[i]._obs) 
+                delete[] obss_[i]._obs;
+        // obss_->_obs = nullptr;
         delete[] obss_;
         // obss_ = nullptr;
     }
 
-    if(eph_) {
-        if (eph_->msg_) {
-            delete[] eph_->msg_; //eph_.msg_ = nullptr;
-            eph_->num = 0;
+    if(_eph) {
+        if (_eph->_msg) {
+            delete[] _eph->_msg; //_eph._msg = nullptr;
+            _eph->_num = 0;
         }
-        delete eph_; eph_ = nullptr;
+        delete _eph; _eph = nullptr;
     }
 }
 
@@ -62,9 +62,9 @@ obs* CRnxBase::GetObs() {
 }
 
 nav* CRnxBase::GetEph() {
-    return this->eph_;
+    return this->_eph;
 }
 
 obs::obs() {
-    this->obs_ == nullptr;
+    this->_obs == nullptr;
 }

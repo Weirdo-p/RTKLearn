@@ -49,14 +49,33 @@ public:
     void satazel(double* site, sat &sat);
 
     /**************************
-     * evalutate solutions
+     * evalutate position solutions
     **************************/
     virtual void evaluate() { }
+
+    /********************************
+     * evaluate velocity solutions
+    ********************************/
+    virtual void evaluateAVD() { }
+    
+    /*******************************************************
+     * find observations in an epoch
+     * @param   sats    [in/out]    observations in an epoch
+     * @return false if EOF
+    *******************************************************/
+    virtual int inputobs(sat* sats) { }
+
+    /*****************************************
+     * absolute velocity determination
+     * @param   isite   site number
+     * @param   sat     satellite information
+    *****************************************/
+    virtual void avd(int isite, sat* sats) { }
 
 protected:
     void bindRinex(char* path);
     void bindEph(int sys);
-
+    nav_t* searchnav(Sattime time, int sys, int prn, nav* navs);
     /**************************************
      * calculate satellite position
      * @param   sats    satellites batch
@@ -161,11 +180,11 @@ public: // set function
     void setopt(prcopt opt);
 
 protected:
-    res_t*      res_;       /* result */
-    prcopt*     opt_;       /* options */
-    CRnxBase*   rnx_;       /* rinex reader */
-    CEphBase*   satpos_;    /* satellite postion */
-    COptimal*   optimizer_; /* least square */
+    res_t*      _res;       /* result */
+    prcopt*     _opt;       /* options */
+    CRnxBase*   _rnx;       /* rinex reader */
+    CEphBase*   _satpos;    /* satellite postion */
+    COptimal*   _optimizer; /* least square */
 };
 
 #endif // _PNTBASE_H_

@@ -182,15 +182,15 @@ private:
     void sortRefChange(int* new_ref_position, int* refsats, int* obssys);
     
 private:
-    int LeapSatsPos_[MAXOBS];   // position in design matrix
-    int refsats_[MAXSYS];       // reference satellites at last epoch
-    int sysobs_[MAXSYS];        // number of observations for each epoch
-    int nobs_;                  // number of observations at current epoch
-    int status_;                // RTK status at current epoch
-    MatrixXd obssats_;          // observed satellites at last epoch
+    int _LeapSatsPos[MAXOBS];   // position in design matrix
+    int _refsats[MAXSYS];       // reference satellites at last epoch
+    int _sysobs[MAXSYS];        // number of observations for each epoch
+    int _nobs;                  // number of observations at current epoch
+    int _status;                // RTK status at current epoch
+    MatrixXd _obssats;          // observed satellites at last epoch
                                 // column 0: system flag, column 1: prn
                                 // column 2: ref sats flag
-    res_t results_;             // kalman results   
+    res_t _results;             // kalman results   
 };
 
 #endif // _RTKEKF_H_

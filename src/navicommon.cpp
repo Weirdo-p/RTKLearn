@@ -2,16 +2,16 @@
 #include <string.h>
 #include <stdio.h>
 sat_s::sat_s() {
-    eph_ = nullptr; obs_ = nullptr;
+    _eph = nullptr; _obs = nullptr;
 }
 
 sat::sat() {
-    nsats_ = 0;
-    memset(this->sat_, 0, sizeof(sat_s) * MAXOBS);
+    _nsats = 0;
+    memset(this->_sat, 0, sizeof(sat_s) * MAXOBS);
 }
 
 sat_s::~sat_s() {
-    eph_ = nullptr; obs_ = nullptr;
+    _eph = nullptr; _obs = nullptr;
 }
 
 prcopt::~prcopt() {

@@ -10,18 +10,25 @@ public:
     CLeastsq(prcopt* opt);
     
 public:
-    bool optimize(MatrixXd B, MatrixXd P, MatrixXd w, int nobs);
+    virtual bool optimize(MatrixXd B, MatrixXd P, MatrixXd w, int nobs) override;
     void getl(sat* sats, double* sitepos, int* refsats, MatrixXd pos, MatrixXd &w);
     MatrixXd Getx();
     bool optimize(sat* sats_epoch, res_t &res);
     virtual MatrixXd GetVar() override;
     virtual double GetInternalSigma() override;
     virtual MatrixXd GetState() override;
-
+    virtual bool optimizeAVD(MatrixXd B, MatrixXd P, MatrixXd w, int nobs) override;
+    virtual MatrixXd GetVel() override;
+    virtual MatrixXd GetVelVar() override;
+    virtual double GetVelInternalSigma() override;
+    
 private:
-    MatrixXd x_;
-    MatrixXd Q_;
-    double sigma_; 
+    MatrixXd _x;
+    MatrixXd _vel;
+    MatrixXd _Q;
+    MatrixXd _vel_Q;
+    double _sigma; 
+    double _vel_sigma;
 };
 
 #endif // _LEASTSQ_H_

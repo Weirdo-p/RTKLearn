@@ -12,36 +12,36 @@
 using namespace chrono;
 
 CPntrtk::CPntrtk() {
-    opt_ = nullptr; optimizer_ = nullptr;
+    _opt = nullptr; _optimizer = nullptr;
 }
 
 CPntrtk::CPntrtk(prcopt opt) {
-    if (opt_) {
-        memcpy(opt_, &opt, sizeof(prcopt));
+    if (_opt) {
+        memcpy(_opt, &opt, sizeof(prcopt));
     } else {
-        opt_ = new prcopt;
-        memcpy(opt_, &opt, sizeof(prcopt));
+        _opt = new prcopt;
+        memcpy(_opt, &opt, sizeof(prcopt));
     }
-    if (!optimizer_) {
-        if (opt_->proctype_ == PROC_KF)
-            optimizer_ = new CRtkekf(opt_);
-        if (opt_->proctype_ == PROC_LS)
-            optimizer_ = new CLeastsq(opt_);
+    if (!_optimizer) {
+        if (_opt->_proctype == PROC_KF)
+            _optimizer = new CRtkekf(_opt);
+        if (_opt->_proctype == PROC_LS)
+            _optimizer = new CLeastsq(_opt);
     }
-    spprunner_ = new CPntspp(*opt_);
+    _spprunner = new CPntspp(*_opt);
 }
 
 CPntrtk::~CPntrtk() {
-    if (spprunner_) 
-        delete spprunner_;
-    spprunner_ = nullptr;
+    if (_spprunner) 
+        delete _spprunner;
+    _spprunner = nullptr;
 }
 
 int CPntrtk::process() {
-    if (opt_->sitenum_ < 2) return -1;
-    sat* sats_epoch = new sat[opt_->sitenum_];
-    if (opt_->base_[0] != 0) memcpy(res_->bpos_ecef_, opt_->base_, sizeof(double) * 3);
-    if (opt_->rover_[0] != 0) memcpy(res_->rpos_ecef_, opt_->rover_, sizeof(double) * 3);
+    if (_opt->_sitenum < 2) return -1;
+    sat* sats_epoch = new sat[_opt->_sitenum];
+    if (_opt->_base[0] != 0) memcpy(_res->_bpos_ecef, _opt->_base, sizeof(double) * 3);
+    if (_opt->_rover[0] != 0) memcpy(_res->_rpos_ecef, _opt->_rover, sizeof(double) * 3);
     
     while(inputobs(sats_epoch)) {
         auto start = system_clock::now();
@@ -50,16 +50,16 @@ int CPntrtk::process() {
         earthRotateFix(sats_epoch);
         satvel(sats_epoch);
         relativeeffect(sats_epoch);
-        spprunner_->spp(sats_epoch);
-        auto res = spprunner_->getRes();
-        memcpy(res_->rpos_ecef_, res->rpos_ecef_, sizeof(double) * 3);
-        satazel(res_->rpos_ecef_, sats_epoch[0]);
+        _spprunner->spp(sats_epoch);
+        auto res = _spprunner->getRes();
+        memcpy(_res->_rpos_ecef, res->_rpos_ecef, sizeof(double) * 3);
+        satazel(_res->_rpos_ecef, sats_epoch[0]);
         rtk(sats_epoch);
         auto end = system_clock::now();
         auto cost = duration_cast<microseconds> (end - start);
-        cout << setw(4) << sats_epoch->sat_->obs_->time.Week_ << " " << setw(9) << fixed << setprecision(6) << sats_epoch->sat_->obs_->time.Sow_;
+        cout << setw(4) << sats_epoch->_sat->_obs->_time._Week << " " << setw(9) << fixed << setprecision(6) << sats_epoch->_sat->_obs->_time._Sow;
         cout<< " TIME COST: " << double (cost.count()) * microseconds::period::num / microseconds::period::den << " seconds" << endl;
-        memset(sats_epoch, 0, sizeof(sat) * opt_->sitenum_);
+        memset(sats_epoch, 0, sizeof(sat) * _opt->_sitenum);
     }
 }
 
@@ -70,19 +70,19 @@ void CPntrtk::outsol(Sattime time, int nobs) {
     string file_name = "./results/result_" + to_string(doy) + ".txt";
     ofstream out(file_name, ios::app);
     out << setfill(' ');
-    out << setw(4) << time.Week_ << " " << setw(18) << fixed << setprecision(6) << time.Sow_;
-    out << " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[0] <<
-            " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[1] <<
-            " " << setw(18) << fixed << setprecision(6) << res_->rpos_ecef_[2] << 
-            " " << setw(9) << fixed << setprecision(6) << res_->enu[0] <<
-            " " << setw(9) << fixed << setprecision(6) << res_->enu[1] <<
-            " " << setw(9) << fixed << setprecision(6) << res_->enu[2] << 
-            " " << setw(9) << fixed << setprecision(6) << res_->sigma_neu_[0] <<
-            " " << setw(9) << fixed << setprecision(6) << res_->sigma_neu_[1] <<
-            " " << setw(9) << fixed << setprecision(6) << res_->sigma_neu_[2] <<
-            " " << setw(2) << fixed << res_->ambi_flag_ << 
-            " " << setw(5) << fixed << setprecision(3) << res_->ratio_ << 
-            " " << setw(5) << fixed << setprecision(3) << res_->rdop_;
+    out << setw(4) << time._Week << " " << setw(18) << fixed << setprecision(6) << time._Sow;
+    out << " " << setw(18) << fixed << setprecision(6) << _res->_rpos_ecef[0] <<
+            " " << setw(18) << fixed << setprecision(6) << _res->_rpos_ecef[1] <<
+            " " << setw(18) << fixed << setprecision(6) << _res->_rpos_ecef[2] << 
+            " " << setw(9) << fixed << setprecision(6) << _res->_enu[0] <<
+            " " << setw(9) << fixed << setprecision(6) << _res->_enu[1] <<
+            " " << setw(9) << fixed << setprecision(6) << _res->_enu[2] << 
+            " " << setw(9) << fixed << setprecision(6) << _res->_sigma_neu[0] <<
+            " " << setw(9) << fixed << setprecision(6) << _res->_sigma_neu[1] <<
+            " " << setw(9) << fixed << setprecision(6) << _res->_sigma_neu[2] <<
+            " " << setw(2) << fixed << _res->_ambi_flag << 
+            " " << setw(5) << fixed << setprecision(3) << _res->_ratio << 
+            " " << setw(5) << fixed << setprecision(3) << _res->_rdop;
     out << setw(3) << fixed << nobs << endl;
     out.close();
 }
@@ -90,21 +90,21 @@ void CPntrtk::outsol(Sattime time, int nobs) {
 int CPntrtk::inputobs(sat* sats) {
     // record observations' postion
     static int base_pos = 0, rover_pos = 0;
-    int nsites = opt_->sitenum_;
-    obs* obss = rnx_->GetObs();
-    nav* navs = rnx_->GetEph();
+    int nsites = _opt->_sitenum;
+    obs* obss = _rnx->GetObs();
+    nav* navs = _rnx->GetEph();
     obs* base = &obss[0], *rover = &obss[1];
-    double diff = Sattimediff(base->obs_[base_pos].time, rover->obs_[rover_pos].time);
+    double diff = Sattimediff(base->_obs[base_pos]._time, rover->_obs[rover_pos]._time);
     // searching observations
     while(abs(diff) >= 1e-3) {
-        if (base_pos >= base->obsnum_ || rover_pos >= rover->obsnum_)
+        if (base_pos >= base->_obsnum || rover_pos >= rover->_obsnum)
             break;
         if (diff < 0)   base_pos += 1;
         else            rover_pos += 1;
-        diff = Sattimediff(base->obs_[base_pos].time, rover->obs_[rover_pos].time);
+        diff = Sattimediff(base->_obs[base_pos]._time, rover->_obs[rover_pos]._time);
     }
     // searching ephemeris
-    if (base_pos >= base->obsnum_ || rover_pos >= rover->obsnum_)
+    if (base_pos >= base->_obsnum || rover_pos >= rover->_obsnum)
         return 0;
     setobs(obss, base_pos, rover_pos, sats);
     setnav(navs, sats);
@@ -115,24 +115,24 @@ int CPntrtk::inputobs(sat* sats) {
 int CPntrtk::setobs(obs* obss, int &base_pos, int &rover_pos, sat* sats) {
     obs* base = &obss[0], *rover = &obss[1];
     int nsats = 0;
-    Sattime time = base->obs_[base_pos].time;
+    Sattime time = base->_obs[base_pos]._time;
     int i_base = base_pos;
     #pragma omp parallel for
-    for (; i_base < base->obsnum_; ++ i_base) {
-        if (base->obs_[i_base].time != time) break;
-        for (int i_rover = rover_pos; i_rover < rover->obsnum_; ++ i_rover) {
-            if (rover->obs_[i_rover].time != time) break;
-            if (base->obs_[i_base].sys != rover->obs_[i_rover].sys || 
-                base->obs_[i_base].sat != rover->obs_[i_rover].sat)
+    for (; i_base < base->_obsnum; ++ i_base) {
+        if (base->_obs[i_base]._time != time) break;
+        for (int i_rover = rover_pos; i_rover < rover->_obsnum; ++ i_rover) {
+            if (rover->_obs[i_rover]._time != time) break;
+            if (base->_obs[i_base]._sys != rover->_obs[i_rover]._sys || 
+                base->_obs[i_base]._sat != rover->_obs[i_rover]._sat)
                 continue;
-            sats[0].sat_[nsats].prn_ = sats[1].sat_[nsats].prn_ = rover->obs_[i_rover].sat;
-            sats[0].sat_[nsats].sys_ = sats[1].sat_[nsats].sys_ = rover->obs_[i_rover].sys;
-            sats[0].sat_[nsats].obs_ = &base->obs_[i_base];
-            sats[1].sat_[nsats].obs_ = &rover->obs_[i_rover];
+            sats[0]._sat[nsats]._prn = sats[1]._sat[nsats]._prn = rover->_obs[i_rover]._sat;
+            sats[0]._sat[nsats]._sys = sats[1]._sat[nsats]._sys = rover->_obs[i_rover]._sys;
+            sats[0]._sat[nsats]._obs = &base->_obs[i_base];
+            sats[1]._sat[nsats]._obs = &rover->_obs[i_rover];
             nsats += 1;
         }
     }
-    sats[0].nsats_ = sats[1].nsats_ = nsats;
+    sats[0]._nsats = sats[1]._nsats = nsats;
     base_pos = i_base;
     base = nullptr; rover = nullptr;
     return 1;
@@ -141,108 +141,82 @@ int CPntrtk::setobs(obs* obss, int &base_pos, int &rover_pos, sat* sats) {
 int CPntrtk::setnav(nav* navs, sat* sats) {
     for (int i = 0; i < 2; ++i) {
         #pragma omp parallel for
-        for (int isat = 0; isat < sats[i].nsats_; ++isat) {
-            int sys = sats[i].sat_[isat].sys_;
-            int prn = sats[i].sat_[isat].prn_;
-            Sattime time = sats[i].sat_[isat].obs_->time;
-            sats[i].sat_[isat].eph_ = searchnav(time, sys, prn, navs);
+        for (int isat = 0; isat < sats[i]._nsats; ++isat) {
+            int sys = sats[i]._sat[isat]._sys;
+            int prn = sats[i]._sat[isat]._prn;
+            Sattime time = sats[i]._sat[isat]._obs->_time;
+            sats[i]._sat[isat]._eph = searchnav(time, sys, prn, navs);
         }
     }
     return 1;
-}
-
-nav_t* CPntrtk::searchnav(Sattime time, int sys, int prn, nav* navs) {
-    int delay = 0;
-    bool isfind = false;
-    if (sys == SYS_GPS) delay = 7200;
-    else if (sys == SYS_BDS) {
-        time = time - BDT2GPST;
-        delay = 3600;
-    }
-    // nav_t* sat_nav = nullptr;
-    #pragma omp parallel for
-    for (int i_nav = navs->num; i_nav > 0; -- i_nav) {
-        if (sys != navs->msg_[i_nav].sys_ || prn != navs->msg_[i_nav].prn_)
-            continue;
-        if (abs(Sattimediff(time, navs->msg_[i_nav].toe_)) > delay)
-            continue;
-        isfind = true;
-        return &navs->msg_[i_nav];
-    }
-    if (!isfind) {
-        cout << "no ephemeris found: sys: " << sys << " prn: " << prn << endl;
-        return nullptr;
-    }
 }
 
 bool CPntrtk::rtk(sat* sats_epoch) {
     int MAXITER = 10, iter = 0, issuccess = 0;
     int REFSATS[MAXSYS] = { -1 };
     int nobs = 0;
-    for (int i = 0; i < opt_->sitenum_; ++i)
+    for (int i = 0; i < _opt->_sitenum; ++i)
         excludesats(sats_epoch[i]);  // observation count by rover
     
     nobs = obsnumber(sats_epoch);
-
-    optimizer_->optimize(sats_epoch, *res_);
+    if (sats_epoch->_sat->_obs->_time._Sow == 551406)
+        cout << "test" << endl;
+    _optimizer->optimize(sats_epoch, *_res);
     evaluate();
     fixambi();
-    XYZ2NEU(res_->bpos_ecef_, res_->rpos_ecef_, WGS84, res_->enu);
-    outsol(sats_epoch->sat_->obs_->time, nobs);
+    XYZ2NEU(_res->_bpos_ecef, _res->_rpos_ecef, WGS84, _res->_enu);
+    outsol(sats_epoch->_sat->_obs->_time, nobs);
 }
 
 int CPntrtk::obsnumber(sat* sats) {
     int nobs = 0;
     #pragma omp parallel for
-    for (int i_sat = 0; i_sat < sats->nsats_; ++ i_sat) {
-        if (!sats[0].sat_[i_sat].isused || !sats[1].sat_[i_sat].isused)
-            sats[0].sat_[i_sat].isused = sats[1].sat_[i_sat].isused = false;
+    for (int i_sat = 0; i_sat < sats->_nsats; ++ i_sat) {
+        if (!sats[0]._sat[i_sat]._isused || !sats[1]._sat[i_sat]._isused)
+            sats[0]._sat[i_sat]._isused = sats[1]._sat[i_sat]._isused = false;
         else nobs += 1;
     }
     return nobs;
 }
 
 int CPntrtk::excludesats(sat &sat) {
-    int satnum = sat.nsats_;
-    double cutoff = opt_->elecutoff_;
+    int satnum = sat._nsats;
+    double cutoff = _opt->_elecutoff;
     for(int isat = 0; isat < satnum; ++ isat) {
-        if(sat.sat_[isat].elev_ != 0 && sat.sat_[isat].elev_ < opt_->elecutoff_) {
-            sat.sat_[isat].isused = false; continue;
+        if(sat._sat[isat]._elev != 0 && sat._sat[isat]._elev < _opt->_elecutoff) {
+            sat._sat[isat]._isused = false; continue;
         }
-        if ((sat.sat_[isat].prn_ <= 5) && sat.sat_[isat].sys_ == SYS_BDS) {
-            sat.sat_[isat].isused = false; continue;
+        if ((sat._sat[isat]._prn <= 5) && sat._sat[isat]._sys == SYS_BDS) {
+            sat._sat[isat]._isused = false; continue;
         }
-        if ((sat.sat_[isat].prn_ >= 59) && sat.sat_[isat].sys_ == SYS_BDS) {
-            sat.sat_[isat].isused = false; continue;
-        }
-
-        if(sat.sat_[isat].prn_ == 5 && sat.sat_[isat].sys_ == SYS_BDS) {
-            sat.sat_[isat].isused = false; continue;
+        if ((sat._sat[isat]._prn >= 59) && sat._sat[isat]._sys == SYS_BDS) {
+            sat._sat[isat]._isused = false; continue;
         }
 
         else {
             bool isobs = true;
             for (int i = 0; i < MAXFREQ; ++i)
-                if ((opt_->freqtype_ & FREQ_ARRAY[i]) == FREQ_ARRAY[i] && 
-                    abs(sat.sat_[isat].obs_->P[i]) <= 1e-6) {
+                if ((_opt->_freqtype & FREQ_ARRAY[i]) == FREQ_ARRAY[i] && 
+                    abs(sat._sat[isat]._obs->_P[i]) <= 1e-6) {
                         isobs = false; break;
                     }
             if (isobs) {
-                sat.sat_[isat].isused = true;
+                sat._sat[isat]._isused = true;
             }
-            else sat.sat_[isat].isused = false;
+            else sat._sat[isat]._isused = false;
         }
-
+        if (!sat._sat[isat]._obs || !sat._sat[isat]._eph)
+            sat._sat[isat]._isused = false;
     }
 }
 
 void CPntrtk::evaluate() {
-    MatrixXd var_state = optimizer_->GetVar();
+    MatrixXd var_state = _optimizer->GetVar();
     MatrixXd Q = var_state.block<0, 0>(3, 3);
-    double sigma = optimizer_->GetInternalSigma();
+    double sigma = _optimizer->GetInternalSigma();
 
     double station_blh[3] = {0};
-    XYZ2BLH(res_->bpos_ecef_, WGS84, station_blh);
+    XYZ2BLH(_res->_bpos_ecef, WGS84, station_blh);
     double B = station_blh[0], L = station_blh[1];
     MatrixXd rotation(3, 3);
     rotation(0, 0) = -sin(B) * cos(L); rotation(0, 1) = -sin(B) * sin(L); rotation(0, 2) = cos(B);
@@ -250,13 +224,13 @@ void CPntrtk::evaluate() {
     rotation(2, 0) = cos(B) * cos(L); rotation(2, 1) = cos(B) * sin(L); rotation(2, 2) = sin(B);
 
     // project to neu coordinate
-    MatrixXd Q_neu = rotation * Q * rotation.transpose();
+    MatrixXd Q_neu = rotation * Q * rotation.transpose();   
     Q_neu = Q_neu * sigma;
     for (int i = 0; i < 3; ++ i)
-        res_->sigma_neu_[i] = sqrt(Q_neu(i, i));
+        _res->_sigma_neu[i] = sqrt(Q_neu(i, i));
     
     // RDOP
     double rdop = 0;
-    for (int i = 0; i < 3; ++ i) rdop += Q(i, i);
-    res_->rdop_ = sqrt(rdop);
+    for (int i = 0; i < var_state.row(); ++ i) rdop += var_state(i, i) * sigma;
+    _res->_rdop = sqrt(rdop);
 }

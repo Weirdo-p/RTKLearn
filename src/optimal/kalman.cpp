@@ -1,46 +1,46 @@
 #include "navigation/optimal/kalman.h"
 
 CKalman::CKalman() {
-    dim_ = 0;
+    _dim = 0;
 }
 
 void CKalman::setState(MatrixXd state) {
-    state_ = state; dim_ = state.row();
+    _state = state; _dim = state.row();
 }
 void CKalman::setVarSys(MatrixXd varsys) {
-    var_sys_ = varsys;
+    _var_sys = varsys;
 }
 
 void CKalman::setVarObs(MatrixXd var_obs) {
-    var_obs_ = var_obs;
+    _var_obs = var_obs;
 }
 
 void CKalman::setStateTrans(MatrixXd state_trans) {
-    state_trans_ = state_trans;
+    _state_trans = state_trans;
 }
 
 void CKalman::setVarState(MatrixXd var_state) {
-    var_state_ = var_state;
+    _var_state = var_state;
 }
 
 void CKalman::setObsMatrix(MatrixXd design) {
-    design_ = design;
+    _design = design;
 }
 
 MatrixXd CKalman::optimize(MatrixXd obs, MatrixXd h) {
     int issuccess = 0;
-    MatrixXd state_time_predict = state_trans_ * state_;
-    MatrixXd var_state_time_predict = state_trans_ * var_state_ * state_trans_.transpose() + var_sys_;
-    MatrixXd K = var_state_time_predict * design_.transpose() * (
-        design_ * var_state_time_predict * design_.transpose() + var_obs_
+    MatrixXd state_time_predict = _state_trans * _state;
+    MatrixXd var_state_time_predict = _state_trans * _var_state * _state_trans.transpose() + _var_sys;
+    MatrixXd K = var_state_time_predict * _design.transpose() * (
+        _design * var_state_time_predict * _design.transpose() + _var_obs
     ).inverse(issuccess);
-    state_ = state_time_predict + K * (obs - h);
-    MatrixXd temp = K * design_;
+    _state = state_time_predict + K * (obs - h);
+    MatrixXd temp = K * _design;
     MatrixXd identity(temp.row(), temp.col()); identity.Identity();
-    var_state_ = (identity - temp) * var_state_time_predict;
-    return state_;
+    _var_state = (identity - temp) * var_state_time_predict;
+    return _state;
 }
 
 CKalman::~CKalman() {
-    dim_ = 0;
+    _dim = 0;
 }

@@ -30,9 +30,9 @@ int main(int argv, char** argc) {
     for (int i = 1; i < argv; ++ i)
         files[n++] = argc[i];
     CPntbase* pnt;
-    if(config.GetConf().mode_ == MODE_RTK) 
+    if(config.GetConf()._mode == MODE_RTK) 
         pnt = new CPntrtk(config.GetConf());
-    else if (config.GetConf().mode_ == MODE_SINGLE) 
+    else if (config.GetConf()._mode == MODE_SINGLE) 
         pnt = new CPntspp(config.GetConf());
     pnt->readRinex(files, n);
     pnt->process();

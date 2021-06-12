@@ -28,13 +28,13 @@ public:
     MatrixXd optimize(MatrixXd obs, MatrixXd h);
 
 protected:
-    int dim_;               // dimension of states
-    MatrixXd state_;        // state vector
-    MatrixXd var_obs_;      // variance of observations
-    MatrixXd var_sys_;      // variance of systems
-    MatrixXd var_state_;    // variance of states
-    MatrixXd state_trans_;  // transition matrix
-    MatrixXd design_;       // design matrix
+    int _dim;               // dimension of states
+    MatrixXd _state;        // state vector
+    MatrixXd _var_obs;      // variance of observations
+    MatrixXd _var_sys;      // variance of systems
+    MatrixXd _var_state;    // variance of states
+    MatrixXd _state_trans;  // transition matrix
+    MatrixXd _design;       // design matrix
 };
 
 #endif // _KALMAN_H_

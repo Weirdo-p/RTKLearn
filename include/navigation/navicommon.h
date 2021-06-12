@@ -7,8 +7,9 @@
 #define _NAVICOMMON_H_
 #include <math.h>
 #include <iostream>
-#include "navigation/matrix.h"
 #include <string>
+#include <sstream>
+#include "navigation/matrix.h"
 
 using namespace std;
 
@@ -88,7 +89,7 @@ using namespace std;
 #define RATIO_THRES     3   /* ambiguity fix threshold */
 #define FIX_SOLU        1
 #define FLOAT_SOLU      2
-#define SPP_SOLU        3        
+#define SPP_SOLU        5        
 
 // Array declaration -----------------------------------------------
 const int SYS_ARRAY[] = {SYS_GPS, SYS_BDS};
@@ -106,21 +107,21 @@ enum EllipsoidType { CGCS2000, WGS84 };   /* support WGS84 CGCS2000 */
 
 // structure defination --------------------------------------------
 struct prcopt {             /* processing options */
-   int mode_;               /* mode for processing (MODE_???) */
-   int navsys_;             /* systems to use */
-   int freqtype_;           /* frequency to use */
-   int ephtype_;            /* broadcast or precise eph to use */
-   int clktype_;            /* clock type(broadcast or precise) */
-   int soltype_;            /* solution type 0: float, 1: fix */
-   int proctype_;           /* processing type 0: LS, 1: KF */
-   unsigned short freqnum_; /* number of used frequency */
-   unsigned short nsys_;    /* number of systems */
-   unsigned short sitenum_; /* number of site */
-   double elecutoff_;       /* elevation cutoff (in radians) */
-   double base_[3] = {0};   /* priori coordinates of base */
-   double rover_[3] = {0};  /* priori coordinates of rover */
-   string nbase_;           /* name of base */
-   string nrover_;          /* name of rover */
+   int _mode;               /* mode for processing (_mode???) */
+   int _navsys;             /* systems to use */
+   int _freqtype;           /* frequency to use */
+   int _ephtype;            /* broadcast or precise eph to use */
+   int _clktype;            /* clock type(broadcast or precise) */
+   int _soltype;            /* solution type 0: float, 1: fix */
+   int _proctype;           /* processing type 0: LS, 1: KF */
+   unsigned short _freqnum; /* number of used frequency */
+   unsigned short _nsys;    /* number of systems */
+   unsigned short _sitenum; /* number of site */
+   double _elecutoff;       /* elevation cutoff (in radians) */
+   double _base[3] = {0};   /* priori coordinates of base */
+   double _rover[3] = {0};  /* priori coordinates of rover */
+   string _nbase;           /* name of base */
+   string _nrover;          /* name of rover */
 
 public:
     ~prcopt();
@@ -128,15 +129,15 @@ public:
 
 struct Ellipsoid {          /* ellipsoid type(default WGS84) */
 public:
-    double a_;              /* major semi axis */
-    double b_;              /* minor semi axis */
-    double c_;              /* helper param */
-    double e2_;             /* square of first eccentricity */
-    double alpha_ ;         /* oblateness */
-    double eprime2_;        /* second eccentricity */
-    double miu_;            /* gravity const */
-    double rotation_;       /* earth rotation */
-    EllipsoidType type_;    /* ellipsoid type */
+    double _a;              /* major semi axis */
+    double _b;              /* minor semi axis */
+    double _c;              /* helper param */
+    double _e2;             /* square of first eccentricity */
+    double _alpha ;         /* oblateness */
+    double _eprime2;        /* second eccentricity */
+    double _miu;            /* gravity const */
+    double _rotation;       /* earth rotation */
+    EllipsoidType _type;    /* ellipsoid type */
 
 public:
     Ellipsoid();
@@ -200,8 +201,8 @@ struct Mjdtime {
  * @param Sow  Second of Week double
 ************************************/
 struct Sattime {
-   int     Week_;
-   double  Sow_;
+   int     _Week;
+   double  _Sow;
 
 public: // constructor
    Sattime();
@@ -217,91 +218,102 @@ public: // overload
 };
 
 struct rnxopt {   /* rinex options */
-    string obstype_[MAXSYS][MAXFREQ * 4]; /* observation type */
-    short obstypepos_[MAXSYS][MAXFREQ * 4]; /* position of observation type */
+    string _obstype[MAXSYS][MAXFREQ * 4]; /* observation type */
+    short _obstypepos[MAXSYS][MAXFREQ * 4]; /* position of observation type */
 };
 
 struct obs_t {              /* observations for an epoch */
-    Sattime time;           /* observation time */
-    int sys, sat;           /* system, satellite id */
-    int lli[MAXFREQ * 4];   /* loss of lock indicator */
-    int S[MAXFREQ];         /* signal strength */
-    double L[MAXFREQ];      /* carrier phase observations (cycle) */
-    double P[MAXFREQ];      /* pseudorange observations (m) */
-    double D[MAXFREQ];      /* doppler observations */
+    Sattime _time;           /* observation time */
+    int _sys, _sat;           /* system, satellite id */
+    int _lli[MAXFREQ * 4];   /* loss of lock indicator */
+    int _S[MAXFREQ];         /* signal strength */
+    double _L[MAXFREQ];      /* carrier phase observations (cycle) */
+    double _P[MAXFREQ];      /* pseudorange observations (m) */
+    double _D[MAXFREQ];      /* doppler observations */
 };
 
 struct obs {                /* observations for total */
-    int obsnum_;            /* total observation numbers */
-    int rcv_;               /* reciever number */
-    obs_t* obs_;            /* observations */
+    int _obsnum;            /* total observation numbers */
+    int _rcv;               /* reciever number */
+    obs_t* _obs;            /* observations */
 
 public: // constructors
     obs();
 };
 
 struct nav_t {  /* emphemeris for a satellite in an epoch */
-    Sattime sig_;                               /* signal broadcast time */
-    Sattime toc_;                               /* ephemeris time (toc) */
-    Sattime toe_;                               /* time of ephemeris */
-    double clkbias_, clkdrift_, clkdrate_;      /* clock parameters */
-    double Iode_, Crs_, Deltan_, M0_;           /* orbit-1 in rinex 3.04 */
+    Sattime _sig;                               /* signal broadcast time */
+    Sattime _toc;                               /* ephemeris time (toc) */
+    Sattime _toe;                               /* time of ephemeris */
+    double _clkbias, _clkdrift, _clkdrate;      /* clock parameters */
+    double _Iode, _Crs, _Deltan, _M0;           /* orbit-1 in rinex 3.04 */
                                                 /* IODE is AODE for bds */
-    double Cuc_, ecc_, Cus_, sqrtA_;            /* orbit-2 in rinex 3.04 */
-    double Cic_, Omega0_, Cis_;                 /* orbit-3 in rinex 3.04 */
-    double I0_, Crc_, Omega_, Omega_dot_;       /* orbit-4 in rinex 3.04 */
-    double Idot_;                               /* orbit-5 in rinex 3.04 */
-    double SV_, SVHealth_, Tgd_[3], Iodc_;      /* orbit-6 in rinex 3.04 */
+    double _Cuc, _ecc, _Cus, _sqrtA;            /* orbit-2 in rinex 3.04 */
+    double _Cic, _Omega0, _Cis;                 /* orbit-3 in rinex 3.04 */
+    double _I0, _Crc, _Omega, _Omega_dot;       /* orbit-4 in rinex 3.04 */
+    double _Idot;                               /* orbit-5 in rinex 3.04 */
+    double _SV, _SVHealth, _Tgd[3], _Iodc;      /* orbit-6 in rinex 3.04 */
                                                 /* tgd[0] -- gps/bds->tgd1(b1/b3) */
                                                 /* tgd[1] -- bds->tgd1(b2/b3) */
                                                 /* tgd[2] -- reserved */
-    double Tof_;                                /* orbit-7 in rinex 3.04 */
-    int sys_, prn_;                             /* systems, prn number */
+    double _Tof;                                /* orbit-7 in rinex 3.04 */
+    int _sys, _prn;                             /* systems, prn number */
 };
 
 struct nav {    /* navigation message */
-    nav_t* msg_;    /* a record */
-    int num;        /* total number */
+    nav_t* _msg;     /* a record */
+    int _num;        /* total number */
 };
 
 struct sat_s {    /* satellite information */
-    int sys_;           /* navigation system */
-    int prn_;           /* sat id */
-    double pos_[3];     /* satellite position ecef */
-    double vel_[3];     /* satellite velocity ecef */
-    double elev_;       /* elevation angle */
-    double azi_;        /* azimuth angle */
-    double clk[2];      /* clock bias / drift */
-    double gf_;         /* geometry-free detection method */
-    bool   isused;      /* true if using this satellite */
-    obs_t* obs_;        /* observations */
-    nav_t* eph_;        /* ephemeris */
+    int _sys;           /* navigation system */
+    int _prn;           /* sat id */
+    double _pos[3];     /* satellite position ecef */
+    double _vel[3];     /* satellite velocity ecef */
+    double _elev;       /* elevation angle */
+    double _azi;        /* azimuth angle */
+    double _clk[2];     /* clock bias / drift */
+    double _gf;         /* geometry-free detection method */
+    bool   _isused;     /* true if using this satellite */
+    obs_t* _obs;        /* observations */
+    nav_t* _eph;        /* ephemeris */
 public:
     sat_s();
     ~sat_s();
 };
 
 struct sat {    /* satellite for an epoch */
-    int nsats_;             /* number of satellites */
-    sat_s sat_[MAXOBS];     /* satellite information */
+    int _nsats;             /* number of satellites */
+    sat_s _sat[MAXOBS];     /* satellite information */
 
 public:
     sat();
 };
 
 struct res_t {  /* result for an epoch */
-    int    ratio_;                  /* LAMBDA ratio value */
-    unsigned int ambi_flag_;        /* 1: fix solution, 2: float solution, 3: spp */
-    double rdop_;                   /* rdop */
-    double sigma_neu_[3];           /* internal reliability */
-    double bpos_ecef_[3];           /* base position */
-    double rpos_ecef_[3];           /* rover position */
-    double bpos_blh_[3];            /* base position */
-    double rpos_blh_[3];            /* rover position */
-    double baseline_[3];            /* baseline result (n/e/u) */
-    double enu[3];                  /* e/n/u respectively */
-    double recv_clk_[MAXSITES];     /* reciever clock */
+    int    _ratio;                  /* LAMBDA ratio value */
+    unsigned int _ambi_flag;        /* 1: fix solution, 2: float solution, 5: spp */
+    double _rdop;                   /* rdop */
+    double _sigma_neu[3];           /* internal reliability */
+    double _sigma_vel[3];           /* velocity internal reliability */
+    double _vel[3];                 /* velocity */
+    double _bpos_ecef[3];           /* base position */
+    double _rpos_ecef[3];           /* rover position */
+    double _bpos_blh[3];            /* base position */
+    double _rpos_blh[3];            /* rover position */
+    double _baseline[3];            /* baseline result (n/e/u) */
+    double _enu[3];                 /* e/n/u respectively */
+    double _recv_clk[MAXSITES];     /* reciever clock */
 public:
     ~res_t();
 };
+
+template <class T>
+T str2num(string line) {
+    stringstream buff;
+    T num;
+    buff << line; buff >> num;
+    return num;
+}
+
 #endif // _NAVICOMMON_H_

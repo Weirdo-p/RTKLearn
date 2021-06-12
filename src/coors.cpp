@@ -11,31 +11,31 @@ double Rad2Deg(double rad) {
 }
 
 Ellipsoid::Ellipsoid() {
-    type_ = WGS84;
-    SetEllipsoidParam(type_);
+    _type = WGS84;
+    SetEllipsoidParam(_type);
 }
 
 Ellipsoid::Ellipsoid(EllipsoidType type) {
-    type_ = type;
+    _type = type;
     SetEllipsoidParam(type);
 }
 
 bool Ellipsoid::SetEllipsoidParam(EllipsoidType type) {
     switch (type) {
     case WGS84: {
-        a_ = 6378137.0;
-        b_ = 6356752.3142;
-        miu_ = 3.986005e14;
-        rotation_ = 7.2921151467e-5;
-        CalculateParam(a_, b_);
+        _a = 6378137.0;
+        _b = 6356752.3142;
+        _miu = 3.986005e14;
+        _rotation = 7.2921151467e-5;
+        CalculateParam(_a, _b);
         break;
     }
     case CGCS2000: {
-        a_ = 6378137.0;
-        b_ = 6356752.3141;
-        miu_ = 3.986004418e14;
-        rotation_ = 7.2921150e-5;
-        CalculateParam(a_, b_);
+        _a = 6378137.0;
+        _b = 6356752.3141;
+        _miu = 3.986004418e14;
+        _rotation = 7.2921150e-5;
+        CalculateParam(_a, _b);
         break;
     }
     default: break;
@@ -45,12 +45,12 @@ bool Ellipsoid::SetEllipsoidParam(EllipsoidType type) {
 bool Ellipsoid::CalculateParam(double a, double b) {
     if (a == 0 || b == 0) return false;
     double e, e_prime;
-    c_ = a * a / b;
-    alpha_ = (a - b) / a;
+    _c = a * a / b;
+    _alpha = (a - b) / a;
     e = sqrt(a * a - b * b) / a;
     e_prime = sqrt(a * a - b * b) / b;
-    e2_ = e * e;
-    eprime2_ = e_prime * e_prime;
+    _e2 = e * e;
+    _eprime2 = e_prime * e_prime;
 
     return true;
 }
@@ -80,10 +80,10 @@ bool XYZ2BLH(const double* xyz, Ellipsoid ellipsoid, double* blh) {
     double B0 = 1;
     while(iteration != 100) {
         double sinB = sin(Deg2Rad(B0));
-        double W = sqrt(1 - ellipsoid.e2_ * sinB * sinB);
-        double N = ellipsoid.a_ / W;
-        double H = xyz[2] / sin(Deg2Rad(B0)) - N * (1 - ellipsoid.e2_);
-        double up = xyz[2] + N * ellipsoid.e2_ * sinB;
+        double W = sqrt(1 - ellipsoid._e2 * sinB * sinB);
+        double N = ellipsoid._a / W;
+        double H = xyz[2] / sin(Deg2Rad(B0)) - N * (1 - ellipsoid._e2);
+        double up = xyz[2] + N * ellipsoid._e2 * sinB;
         double down = sqrt(xyz[0] * xyz[0] + xyz[1] * xyz[1]);
         blh[0] = atan(up / down);
         blh[0] = Rad2Deg(blh[0]);

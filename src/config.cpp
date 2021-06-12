@@ -16,11 +16,11 @@ void CConfig::LoadConfig(char* path) {
 }
 
 void CConfig::reset() {
-    opt_.navsys_ = SYS_NONE;
-    opt_.mode_ = MODE_SINGLE;
-    opt_.freqtype_ = FREQTYPE_L1;
-    opt_.freqnum_ = 1;
-    opt_.elecutoff_ = 0;
+    _opt._navsys = SYS_NONE;
+    _opt._mode = MODE_SINGLE;
+    _opt._freqtype = FREQTYPE_L1;
+    _opt._freqnum = 1;
+    _opt._elecutoff = 0;
 }
 
 void CConfig::Loadprcopt(char* path) {
@@ -80,9 +80,9 @@ bool CConfig::ParseLabel(string label, string value) {
 bool CConfig::SetSoltype(string value) {
     transform(value.begin(), value.end(), value.begin(), ::tolower);
     if (value == "float")
-        opt_.soltype_ = SOLTYPE_FLOAT;
+        _opt._soltype = SOLTYPE_FLOAT;
     else if (value == "fix")
-        opt_.soltype_ = SOLTYPE_FIX;
+        _opt._soltype = SOLTYPE_FIX;
     else return false;
 
     return true;
@@ -91,25 +91,25 @@ bool CConfig::SetSoltype(string value) {
 bool CConfig::SetProctype(string value) {
     transform(value.begin(), value.end(), value.begin(), ::tolower);
     if (value == "kalman")
-        opt_.proctype_ = PROC_KF;
+        _opt._proctype = PROC_KF;
     else if (value == "epoch") 
-        opt_.proctype_ = PROC_LS;
+        _opt._proctype = PROC_LS;
     else return false;
 
     return true;
 }
 
 bool CConfig::SetSys(string value) {
-    opt_.navsys_ = SYS_NONE; opt_.nsys_ = 0;
+    _opt._navsys = SYS_NONE; _opt._nsys = 0;
     for (int i = 0; i < value.size(); ++i) {
         if (value[i] == 'G') {
-            opt_.navsys_ |= SYS_GPS; opt_.nsys_ ++;
+            _opt._navsys |= SYS_GPS; _opt._nsys ++;
         }
         if (value[i] == 'C') {
-            opt_.navsys_ |= SYS_BDS; opt_.nsys_ ++;
+            _opt._navsys |= SYS_BDS; _opt._nsys ++;
         }
     }
-    if (opt_.navsys_ == SYS_NONE) {
+    if (_opt._navsys == SYS_NONE) {
         cout << "no navigation system input" << endl;
         return false;
     }
@@ -121,47 +121,47 @@ bool CConfig::SetCutOff(string value) {
     double elev;
     buff << value; buff >> elev;
     if(elev < 1e-3) return false;
-    opt_.elecutoff_ = Deg2Rad(elev);
+    _opt._elecutoff = Deg2Rad(elev);
     return true;
 }
 
 bool CConfig::SetMode(string value) {
     transform(value.begin(), value.end(), value.begin(), ::tolower);
-    if (value == "single")  opt_.mode_ = MODE_SINGLE;
-    else if (value == "rtk") opt_.mode_ = MODE_RTK;
+    if (value == "spp")  _opt._mode = MODE_SINGLE;
+    else if (value == "rtk") _opt._mode = MODE_RTK;
     else return false;
 
     return true;
 }
 
 bool CConfig::SetEphType(string value) {
-    if (value == "brdc")    opt_.ephtype_ = EPH_BRDC;
-    else if (value == "prec") opt_.ephtype_ = EPH_PREC;
+    if (value == "brdc")    _opt._ephtype = EPH_BRDC;
+    else if (value == "prec") _opt._ephtype = EPH_PREC;
     else return false;
 
     return true;
 }
 
 bool CConfig::SetClkType(string value) {
-    if (value == "brdc")    opt_.clktype_ = EPH_BRDC;
-    else if (value == "prec") opt_.clktype_ = EPH_PREC;
+    if (value == "brdc")    _opt._clktype = EPH_BRDC;
+    else if (value == "prec") _opt._clktype = EPH_PREC;
     else return false;
 
     return true;
 }
 
 bool CConfig::SetFreq(string value) {
-    opt_.freqtype_ = 0; opt_.freqnum_ = 0;
+    _opt._freqtype = 0; _opt._freqnum = 0;
     for(int i = 0; i < value.size(); ++i) {
         if (value[i] == '1'){
-            opt_.freqtype_ |= FREQTYPE_L1;
-            opt_.freqnum_ ++;
+            _opt._freqtype |= FREQTYPE_L1;
+            _opt._freqnum ++;
         } else if (value[i] == '2') {
-            opt_.freqtype_ |= FREQTYPE_L2;
-            opt_.freqnum_ ++;
+            _opt._freqtype |= FREQTYPE_L2;
+            _opt._freqnum ++;
         } else if (value[i] == '3') {
-            opt_.freqtype_ |= FREQTYPE_L3;
-            opt_.freqnum_ ++;
+            _opt._freqtype |= FREQTYPE_L3;
+            _opt._freqnum ++;
         } else if (value[i] == ',') continue;
         else if (value[i] == 'L') continue;
         else return false;
@@ -192,18 +192,18 @@ void CConfig::ParseSiteLine(string line) {
     stringstream buff;
     buff << line;
     if (sitenum == 0) {
-        buff >> opt_.nbase_;
-        opt_.nbase_ = opt_.nbase_.substr(0, 4);
-        buff >> opt_.base_[0] >> opt_.base_[1] >> opt_.base_[2];
+        buff >> _opt._nbase;
+        _opt._nbase = _opt._nbase.substr(0, 4);
+        buff >> _opt._base[0] >> _opt._base[1] >> _opt._base[2];
     } else {
-        buff >> opt_.nrover_;
-        opt_.nrover_ = opt_.nrover_.substr(0, 4);
-        buff >> opt_.rover_[0] >> opt_.rover_[1] >> opt_.rover_[2];
+        buff >> _opt._nrover;
+        _opt._nrover = _opt._nrover.substr(0, 4);
+        buff >> _opt._rover[0] >> _opt._rover[1] >> _opt._rover[2];
     }
     sitenum++;
-    opt_.sitenum_ = sitenum;
+    _opt._sitenum = sitenum;
 }
 
 prcopt CConfig::GetConf() {
-    return opt_;
+    return _opt;
 }

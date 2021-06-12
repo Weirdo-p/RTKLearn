@@ -39,7 +39,7 @@ protected:
     int             nsites_;        //  site number
     rnxopt          rnxopt_;        //  rinex options
     obs*            obss_;          //  observations
-    nav*            eph_;           //  ephemeris
+    nav*            _eph;           //  ephemeris
 
 protected:
     const char freqcode_[MAXSYS][MAXFREQ+1] = {
@@ -47,9 +47,9 @@ protected:
         FREQCODE_BDS   // BDS
     };
     // code, carrier phase, doppler, signal strength
-    const char* obstype_ = OBSTYPE;
-    const char* mode_ = TRACKMODE;
-    const char* sys_ = SYSTEMS;
+    const char* _obstype = OBSTYPE;
+    const char* _mode = TRACKMODE;
+    const char* _sys = SYSTEMS;
 };
 
 #endif  // _RINEXBASE_H_
