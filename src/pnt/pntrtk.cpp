@@ -54,6 +54,21 @@ int CPntrtk::process() {
         auto res = _spprunner->getRes();
         memcpy(_res->_rpos_ecef, res->_rpos_ecef, sizeof(double) * 3);
         satazel(_res->_rpos_ecef, sats_epoch[0]);
+#if 0
+        ofstream out ("./satpos_0514.txt", ios::app);
+        out << setw(4) << sats_epoch->_sat->_obs->_time._Week << " " << setw(18) << fixed << setprecision(6) << sats_epoch->_sat->_obs->_time._Sow;
+        out << endl;
+        for (int i = 0; i < sats_epoch->_nsats; ++i) {
+            out << setw(2) << sats_epoch[0]._sat[i]._sys << " " << setw(2) << setfill('0') << sats_epoch[0]._sat[i]._prn << "  ";
+            out << setfill(' ');
+            for (int j = 0; j < 3; ++ j)
+                out << setw(18) << fixed << setprecision(6) << sats_epoch[0]._sat[i]._pos[j] << "  ";
+            out << setw(18) << fixed << setprecision(6) << sats_epoch[0]._sat[i]._clk[0] << "  " <<
+                   setw(18) << fixed << setprecision(6) << sats_epoch[0]._sat[i]._clk[1] << "  ";
+            out << endl;
+        }
+        out.close();
+#endif
         rtk(sats_epoch);
         auto end = system_clock::now();
         auto cost = duration_cast<microseconds> (end - start);
@@ -159,7 +174,7 @@ bool CPntrtk::rtk(sat* sats_epoch) {
         excludesats(sats_epoch[i]);  // observation count by rover
     
     nobs = obsnumber(sats_epoch);
-    if (sats_epoch->_sat->_obs->_time._Sow == 551406)
+    if (sats_epoch->_sat->_obs->_time._Sow == 541675)
         cout << "test" << endl;
     _optimizer->optimize(sats_epoch, *_res);
     evaluate();

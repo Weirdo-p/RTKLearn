@@ -42,10 +42,6 @@ protected:
     nav*            _eph;           //  ephemeris
 
 protected:
-    const char freqcode_[MAXSYS][MAXFREQ+1] = {
-        FREQCODE_GPS,  // GPS
-        FREQCODE_BDS   // BDS
-    };
     // code, carrier phase, doppler, signal strength
     const char* _obstype = OBSTYPE;
     const char* _mode = TRACKMODE;

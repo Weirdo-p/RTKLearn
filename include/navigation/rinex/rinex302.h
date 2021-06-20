@@ -1,13 +1,13 @@
-#ifndef _RINEX_H_
-#define _RINEX_H_
+#ifndef _RINEX302_H_
+#define _RINEX302_H_
 
 #include "navigation/navicommon.h"
 #include "navigation/rinex/rinexbase.h"
 
-class CDecodeRnx304 : public CRnxBase{
+class CDecodeRnx302 : public CRnxBase{
 public: // constructors
-    CDecodeRnx304();
-    virtual ~CDecodeRnx304();
+    CDecodeRnx302();
+    virtual ~CDecodeRnx302();
 
 public: // main functions
     /*********************************************
@@ -81,8 +81,8 @@ protected: // helper
 private:
     const char freqcode_[MAXSYS][MAXFREQ+1] = {
         FREQCODE_GPS,   // GPS
-        "267"           // BDS in rinex 304
+        "167"           // BDS in rinex 302
     };
 };
 
-#endif
+#endif // _RINEX_H_

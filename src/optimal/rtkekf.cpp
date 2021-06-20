@@ -33,7 +33,7 @@ bool CRtkekf::optimize(sat* sats_epoch, res_t &res) {
     _state = state_time_predict + K * (obs - approx);
     auto tmp = obs - approx;
     // out << _obssats << endl << endl;
-    // out << tmp << endl << endl;
+    cout << tmp << endl << endl;
     
     MatrixXd temp = K * _design;
     MatrixXd identity(temp.row(), temp.col()); identity.Identity();

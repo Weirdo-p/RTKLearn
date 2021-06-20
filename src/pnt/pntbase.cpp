@@ -260,7 +260,9 @@ void CPntbase::GetNonCombine(sat sat, MatrixXd &w) {
             if ((_opt->_freqtype & FREQ_ARRAY[i]) == FREQ_ARRAY[i])
                 p_pos = i;
         double L1 = sat._sat[i_sat]._obs->_P[p_pos];
-        w(num, 0) += L1; num ++;
+        // fix iono
+        double iono = CAtmosphere::klobuchar(_res->_rpos_blh, sat._sat[i_sat]);
+        w(num, 0) += L1 - iono; num ++;
     }
 }
 

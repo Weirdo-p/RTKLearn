@@ -39,10 +39,12 @@ int CPntspp::process() {
         earthRotateFix(sats_epoch);
         satvel(sats_epoch);
         relativeeffect(sats_epoch);
+        bool issuccess = true;
         for (int i_site = 0; i_site < _opt->_sitenum; ++ i_site) {
-            spp_site(i_site, &sats_epoch[i_site]);
+            if (spp_site(i_site, &sats_epoch[i_site]) == -1) issuccess = false;
             avd(i_site, &sats_epoch[i_site]);
         }
+        if (!issuccess) continue;
         int nobs = excludesats(*sats_epoch);
         outsol(sats_epoch->_sat->_obs->_time, nobs);
         auto res = getRes();
@@ -132,7 +134,7 @@ int CPntspp::spp_site(int i_site, sat* sats) {
             cols += 1;
         if (nobs < cols) {
             cout << "FATAL: no sufficient observations" << endl;
-            break;
+            return -1;
         }
         if (iter == 0) {
             pos.resize(cols, 1); pos.Zero();
@@ -150,7 +152,7 @@ int CPntspp::spp_site(int i_site, sat* sats) {
             memset(sitepos_ecef, 0, sizeof(double) * 3);
             cout << w << endl;
             cout << B << endl;
-            continue;
+            return -1;
         }
         
         MatrixXd x = _optimizer->GetState();
@@ -161,8 +163,10 @@ int CPntspp::spp_site(int i_site, sat* sats) {
             break;
     }
     memcpy(_res->_rpos_ecef, sitepos_ecef, sizeof(double) * 3);
+    XYZ2BLH(sitepos_ecef, type, _res->_rpos_blh);
     evaluate(); // TODO:
     sitepos_ecef = nullptr; sitepos_blh = nullptr;
+    return 0;
 }
 
 void CPntspp::GetDesign(sat sats, double* sitepos, MatrixXd &B) {
@@ -337,7 +341,6 @@ void CPntspp::avd(int i_site, sat* sats) {
         cout << B << endl;
     }
     MatrixXd x = _optimizer->GetVel();
-    auto vel_delta = x.block<0, 0>(3, 1);
     for (int i = 0; i < x.row(); ++i) _res->_vel[i] = x(i, 0);
 
     evaluateAVD();

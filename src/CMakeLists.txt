@@ -14,6 +14,7 @@ add_library(pnt SHARED
         ephemeris/ephgps.cpp
         ephemeris/ephbds.cpp
         rinex/rinex304.cpp
+        rinex/rinex302.cpp
         rinex/rinexbase.cpp)
 
 add_library(optimal SHARED

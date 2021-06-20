@@ -13,6 +13,7 @@
 #include "navigation/optimal/rtkekf.h"
 #include "navigation/optimal/optimal.h"
 #include "navigation/ambiguity/lambda.h"
+#include "navigation/rinex/rinex302.h"
 
 
 using namespace std;
