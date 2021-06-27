@@ -174,8 +174,8 @@ bool CPntrtk::rtk(sat* sats_epoch) {
         excludesats(sats_epoch[i]);  // observation count by rover
     
     nobs = obsnumber(sats_epoch);
-    if (sats_epoch->_sat->_obs->_time._Sow == 541675)
-        cout << "test" << endl;
+    // if (sats_epoch->_sat->_obs->_time._Sow == 541675)
+    //     cout << "test" << endl;
     _optimizer->optimize(sats_epoch, *_res);
     evaluate();
     fixambi();

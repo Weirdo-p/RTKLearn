@@ -34,7 +34,7 @@ int CDecodeRnx302::decode(char* infiles, prcopt opt) {
     label.erase(itor, label.end());
     if (label == "RINEXVERSION/TYPE") {
         string s_ver = line.substr(5, 4);
-        if (s_ver != "3.04") {
+        if (s_ver != "3.02") {
             cout << "rinex version is " << s_ver << " which is not supported" << endl;
             return -1;
         }
@@ -124,7 +124,7 @@ int CDecodeRnx302::readfreqtype(ifstream &in, string line, int sys, prcopt opt) 
         // unknown observation type
         if (!(p = strchr(_obstype, freqtype[0])))
             continue;
-        obstypepos = int(p - _obstype);
+        obstypepos = int(p - _obstype); 
         // unknown track mode
         if (!(p = strchr(_mode, freqtype[2])))
             continue;

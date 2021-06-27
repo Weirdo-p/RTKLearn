@@ -149,10 +149,10 @@ int CPntspp::spp_site(int i_site, sat* sats) {
         // cout << B << endl << endl;
         // cout << pos << endl << endl;
         if(!_optimizer->optimize(B, P, w, nobs)) {
-            memset(sitepos_ecef, 0, sizeof(double) * 3);
-            cout << w << endl;
-            cout << B << endl;
-            return -1;
+            // memset(sitepos_ecef, 0, sizeof(double) * 3);
+            // cout << w << endl;
+            // cout << B << endl;
+            // return -1;
         }
         
         MatrixXd x = _optimizer->GetState();
@@ -336,9 +336,9 @@ void CPntspp::avd(int i_site, sat* sats) {
     // cout << B << endl << endl;
     // cout << pos << endl << endl;
     if(!_optimizer->optimizeAVD(B, P, w, nobs)) {
-        pos.Zero();
-        cout << w << endl;
-        cout << B << endl;
+        // pos.Zero();
+        // cout << w << endl;
+        // cout << B << endl;
     }
     MatrixXd x = _optimizer->GetVel();
     for (int i = 0; i < x.row(); ++i) _res->_vel[i] = x(i, 0);
