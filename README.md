@@ -1,5 +1,6 @@
 # Simple RTK
 - Support dual frequency RTK of BDS and GPS
+- Support both EKF and LS methods
 
 
 usage: 
