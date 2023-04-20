@@ -1,3 +1,5 @@
+# Simple RTK
+- Support dual frequency RTK of BDS and GPS
 usage: 
 mkdir build
 cd build
